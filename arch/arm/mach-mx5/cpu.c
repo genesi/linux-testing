@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <mach/hardware.h>
 #include <linux/io.h>
 
@@ -150,10 +152,44 @@ int mx50_revision(void)
 }
 EXPORT_SYMBOL(mx50_revision);
 
+/*
+ * The MIPI HSC unit has been removed from the i.MX51 Reference Manual by
+ * the Freescale marketing division. However this did not remove the
+ * hardware from the chip which still needs to be configured for proper
+ * IPU support.
+ */
+static void __init ipu_mipi_setup(void)
+{
+	struct clk *hsc_clk;
+	void __iomem *hsc_addr;
+
+	hsc_addr = MX51_IO_ADDRESS(MX51_MIPI_HSC_BASE_ADDR);
+
+	hsc_clk = clk_get_sys(NULL, "mipi_hsp");
+	if (IS_ERR(hsc_clk)) {
+		pr_err("failed to get mipi clock\n");
+		return;
+	}
+	clk_enable(hsc_clk);
+
+	/* setup MIPI module to legacy mode */
+	__raw_writel(0xf00, hsc_addr);
+
+	/* CSI mode: reserved; DI control mode: legacy (from Freescale BSP) */
+	__raw_writel(__raw_readl(hsc_addr + 0x800) | 0x30ff,
+		hsc_addr + 0x800);
+
+	clk_disable(hsc_clk);
+	clk_put(hsc_clk);
+}
+
 static int __init post_cpu_init(void)
 {
 	unsigned int reg;
 	void __iomem *base;
+
+	if (cpu_is_mx51())
+		ipu_mipi_setup();
 
 	if (cpu_is_mx51() || cpu_is_mx53()) {
 		if (cpu_is_mx51())
