@@ -183,6 +183,11 @@ static void __init ipu_mipi_setup(void)
 	clk_put(hsc_clk);
 }
 
+#define M4IF_FBPM0	0x40
+#define M4IF_FBPM1	0x44
+#define M4IF_MIF4	0x48
+#define M4IF_FPWC	0x9C
+
 static int __init post_cpu_init(void)
 {
 	unsigned int reg;
@@ -215,6 +220,15 @@ static int __init post_cpu_init(void)
 		__raw_writel(0x0, base + 0x4C);
 		reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
 		__raw_writel(reg, base + 0x50);
+
+		if (cpu_is_mx51()) {
+			base = MX51_IO_ADDRESS(MX51_M4IF_BASE_ADDR);
+
+			__raw_writel(0x001133, base + M4IF_FBPM0);
+			__raw_writel(0x0, base + M4IF_FBPM1);
+			__raw_writel(0x240126, base + M4IF_FPWC);
+			__raw_writel(0x230185, base + M4IF_MIF4);
+		}
 	}
 
 	return 0;
