@@ -1,0 +1,2 @@
+#!/bin/sh
+make -j9 ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- LOADADDR=0x90008000 INSTALL_MOD_PATH=/build/hub/install INSTALL_PATH=/build/hub/install/boot $1
