@@ -570,6 +570,7 @@ static struct mc13xxx_platform_data mx51_efika_mc13892_data = {
 		.num_regulators = ARRAY_SIZE(mx51_efika_regulators),
 		.regulators = mx51_efika_regulators,
 	},
+	.wdi_reboot = 1,
 };
 
 static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
@@ -607,6 +608,7 @@ void __init efika_board_common_init(void)
 					ARRAY_SIZE(mx51efika_pads));
 	imx51_add_imx_uart(0, &uart_pdata);
 	mx51_efika_usb();
+	imx51_add_imx2_wdt(0, NULL);
 
 	/* FIXME: comes from original code. check this. */
 	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
