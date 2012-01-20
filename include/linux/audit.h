@@ -524,9 +524,6 @@ static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid
 	if (unlikely(!audit_dummy_context()))
 		__audit_ipc_set_perm(qbytes, uid, gid, mode);
 }
-<<<<<<< HEAD
-static inline void audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
-=======
 static inline int audit_bprm(struct linux_binprm *bprm)
 {
 	if (unlikely(!audit_dummy_context()))
@@ -545,7 +542,6 @@ static inline int audit_sockaddr(int len, void *addr)
 	return 0;
 }
 static inline void audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
->>>>>>> 955e422... audit: inline checks for not needing to collect aux records
 {
 	if (unlikely(!audit_dummy_context()))
 		__audit_mq_open(oflag, mode, attr);
