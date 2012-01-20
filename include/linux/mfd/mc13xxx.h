@@ -166,6 +166,8 @@ struct mc13xxx_platform_data {
 	struct mc13xxx_regulator_platform_data regulators;
 	struct mc13xxx_leds_platform_data *leds;
 	struct mc13xxx_buttons_platform_data *buttons;
+
+	unsigned int wdi_reboot;
 };
 
 #define MC13XXX_ADC_MODE_TS		1

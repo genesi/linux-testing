@@ -126,6 +126,9 @@ struct mc13xxx {
 #define MC13XXX_REVISION_FAB		(0x03 << 11)
 #define MC13XXX_REVISION_ICIDCODE	(0x3f << 13)
 
+#define MC13892_POWERCTL2		15
+#define MC13892_POWERCTL2_WDIRESET	(1 << 12)
+
 #define MC13XXX_ADC1		44
 #define MC13XXX_ADC1_ADEN		(1 << 0)
 #define MC13XXX_ADC1_RAND		(1 << 1)
@@ -702,6 +705,7 @@ static int mc13xxx_probe(struct spi_device *spi)
 	struct mc13xxx_platform_data *pdata = dev_get_platdata(&spi->dev);
 	enum mc13xxx_id id;
 	int ret;
+	unsigned int val;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "invalid platform data\n");
@@ -725,6 +729,15 @@ static int mc13xxx_probe(struct spi_device *spi)
 	ret = mc13xxx_identify(mc13xxx, &id);
 	if (ret || id == MC13XXX_ID_INVALID)
 		goto err_revision;
+
+	if (id == MC13XXX_ID_MC13892 && pdata->wdi_reboot) {
+		/* allows to reboot on wdi event */
+		ret = mc13xxx_reg_read(mc13xxx, MC13892_POWERCTL2, &val);
+		if (!ret) {
+			val |= MC13892_POWERCTL2_WDIRESET;
+			mc13xxx_reg_write(mc13xxx, MC13892_POWERCTL2, val);
+		}
+	}
 
 	/* mask all irqs */
 	ret = mc13xxx_reg_write(mc13xxx, MC13XXX_IRQMASK0, 0x00ffffff);
