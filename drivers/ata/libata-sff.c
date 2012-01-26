@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/libata.h>
 #include <linux/highmem.h>
+#include <linux/leds.h>
 
 #include "libata.h"
 
@@ -1485,6 +1486,26 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_sff_qc_issue);
+
+/**
+ * 	ata_sff_qc_issue_ledtrigger - trigger LED core
+ * 	@qc: command to issue to device
+ *
+ * 	This triggers the LED core and then calls the
+ * 	regular ata_sff_qc_issue function.
+ *
+ * 	LOCKING:
+ * 	spin_lock_irqsave(host lock)
+ *
+ * 	RETURNS:
+ * 	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned int ata_sff_qc_issue_ledtrigger(struct ata_queued_cmd *qc)
+{
+	ledtrig_ide_activity();
+	return ata_sff_qc_issue(qc);
+}
+EXPORT_SYMBOL_GPL(ata_sff_qc_issue_ledtrigger);
 
 /**
  *	ata_sff_qc_fill_rtf - fill result TF using ->sff_tf_read
