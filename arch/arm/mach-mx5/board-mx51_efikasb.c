@@ -136,7 +136,7 @@ static void __init mx51_efikasb_usb(void)
 static const struct gpio_led mx51_efikasb_leds[] __initconst = {
 	{
 		.name = "efikasb:green",
-		.default_trigger = "default-on",
+		.default_trigger = "ide-disk",
 		.gpio = EFIKASB_GREEN_LED,
 		.active_low = 1,
 	},
