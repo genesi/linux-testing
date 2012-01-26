@@ -27,6 +27,13 @@ config DRM_KMS_HELPER
 	help
 	  FB and CRTC helpers for KMS drivers.
 
+config DRM_KMS_ENCON
+	tristate
+	depends on DRM
+	help
+	  Helper for KMS drivers which use connectors and encoders with a 1:1
+	  relationship
+
 config DRM_TTM
 	tristate
 	depends on DRM
@@ -159,6 +166,12 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
-source "drivers/gpu/drm/exynos/Kconfig"
+config DRM_I2C_SII902X
+	tristate "Silicon Image SII9022 and compatible HDMI transmitter"
+	depends on DRM && I2C
+	help
+	  Support for Silicon Image SII9022 and compatible HDMI transmitter
 
+source "drivers/gpu/drm/imx/Kconfig"
+source "drivers/gpu/drm/exynos/Kconfig"
 source "drivers/gpu/drm/vmwgfx/Kconfig"

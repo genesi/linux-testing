@@ -27,10 +27,12 @@
 #include <linux/mfd/mc13892.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <drm/imx-ipu-v3.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
+#include <mach/ipu-v3.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -58,6 +60,11 @@
 
 #define EFIKAMX_PMIC		IMX_GPIO_NR(1, 6)
 
+#define EFIKAMX_HDMI_IRQ	IMX_GPIO_NR(3, 6)
+#define EFIKAMX_DISPLAY_RESET	IMX_GPIO_NR(3, 5)
+#define EFIKAMX_HDMI_EN		IMX_GPIO_NR(3, 4)       /* active low */
+
+
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
 #define MX51_PAD_PCBID1	IOMUX_PAD(0x51C, 0x134, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
@@ -84,6 +91,33 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 
 	/* power off */
 	MX51_PAD_CSI2_VSYNC__GPIO4_13,
+
+	/* display */
+/*
+	MX51_PAD_CSI1_D9__GPIO3_13,		// sb lcd power
+	MX51_PAD_DISPB2_SER_DIN__GPIO3_5,	// lvds reset
+	MX51_PAD_DISPB2_SER_CLK__GPIO3_7,	// lvds power?
+	MX51_PAD_CSI1_D8__GPIO3_12,		// lvds enable
+	MX51_PAD_DI1_D1_CS__GPIO3_4,		// di0 enable? needs to be off
+	MX51_PAD_DI2_DISP_CLK__DI2_DISP_CLK, // FIXME
+*/
+	/* hdmi */
+	MX51_PAD_DISPB2_SER_DIN__GPIO3_5,	// display reset (global)
+	MX51_PAD_DI1_D1_CS__GPIO3_4,		// hdmi enable
+//	MX51_PAD_DISPB2_SER_CLK__GPIO3_7,	// vga enable (unused)
+	MX51_PAD_DISPB2_SER_DIO__GPIO3_6,	// hdmi irq
+
+	/* audio */
+	MX51_PAD_EIM_A23__GPIO2_17,		// mx amp enable
+	MX51_PAD_GPIO1_9__GPIO1_9,		// audio clock en
+	MX51_PAD_DISPB2_SER_RS__GPIO3_8, 	// hp detect
+	MX51_PAD_OWIRE_LINE__SPDIF_OUT,
+
+	/* I2C */
+	MX51_PAD_GPIO1_2__GPIO1_2,		// these two gpio need to be
+	MX51_PAD_GPIO1_3__GPIO1_3,		// set to reset the input select
+	MX51_PAD_KEY_COL4__I2C2_SCL,
+	MX51_PAD_KEY_COL5__I2C2_SDA,
 };
 
 /*   PCBID2  PCBID1 PCBID0  STATE
@@ -182,6 +216,22 @@ static const struct gpio_keys_platform_data mx51_efikamx_powerkey_data __initcon
 	.nbuttons = ARRAY_SIZE(mx51_efikamx_powerkey),
 };
 
+static struct imx_ipuv3_platform_data ipu_data = {
+};
+
+static const struct imxi2c_platform_data mx51_efikamx_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
+static struct i2c_board_info mx51_efikamx_i2c_display[] __initdata = {
+	{
+	.type = "sii902x",
+	.addr = 0x39,
+	.irq = IMX_GPIO_TO_IRQ(EFIKAMX_HDMI_IRQ),
+	}
+};
+
+
 void mx51_efikamx_reset(void)
 {
 	if (system_rev == 0x11)
@@ -230,6 +280,17 @@ static int __init mx51_efikamx_power_init(void)
 }
 late_initcall(mx51_efikamx_power_init);
 
+static int mx51_efikamx_fb_init(void)
+{
+	if (!machine_is_mx51_efikamx())
+		return 0;
+
+	imx51_add_ipuv3(&ipu_data);
+	return 0;
+}
+late_initcall(mx51_efikamx_fb_init);
+
+
 static void __init mx51_efikamx_init(void)
 {
 	imx51_soc_init();
@@ -272,6 +333,18 @@ static void __init mx51_efikamx_init(void)
 	gpio_direction_output(EFIKA_WLAN_RESET, 0);
 	msleep(10);
 	gpio_set_value(EFIKA_WLAN_RESET, 1);
+
+	gpio_request(EFIKAMX_HDMI_EN, "hdmi:enable#");
+	gpio_direction_output(EFIKAMX_HDMI_EN, 0);
+
+	gpio_request(EFIKAMX_DISPLAY_RESET, "hdmi:reset");
+	gpio_direction_output(EFIKAMX_DISPLAY_RESET, 0);
+
+	gpio_request(EFIKAMX_HDMI_IRQ, "hdmi:irq");
+	gpio_direction_input(EFIKAMX_HDMI_IRQ);
+
+	i2c_register_board_info(1, mx51_efikamx_i2c_display, ARRAY_SIZE(mx51_efikamx_i2c_display));
+	imx51_add_imx_i2c(1, &mx51_efikamx_i2c_data);
 }
 
 static void __init mx51_efikamx_timer_init(void)

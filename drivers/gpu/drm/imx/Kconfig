@@ -1,0 +1,18 @@
+# i.MX DRM configuration
+
+config DRM_IMX_IPUV3
+	tristate "i.MX IPUv3"
+	depends on DRM && ARCH_MXC
+	help
+	  Graphics support for the i.MX5 IPUv3EX/M
+
+config DRM_IMX
+	tristate "I.MX IPUv3 DRM support"
+	depends on DRM_IMX_IPUV3
+	select DRM_KMS_ENCON
+	select DRM_KMS_HELPER
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  DRM support for the i.MX5 IPUv3EX/M

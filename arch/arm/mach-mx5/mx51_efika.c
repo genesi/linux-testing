@@ -14,7 +14,6 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/input.h>
@@ -404,6 +403,7 @@ static struct regulator_init_data vvideo_init = {
 		.valid_ops_mask =
 			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
 		.boot_on = 1,
+		.always_on = 1,
 		.apply_uV = 1,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(vvideo_consumers),
@@ -418,6 +418,7 @@ static struct regulator_init_data vaudio_init = {
 		.valid_ops_mask =
 			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
 		.boot_on = 1,
+		.always_on = 1,
 	}
 };
 
@@ -600,6 +601,7 @@ static const struct spi_imx_master mx51_efika_spi_pdata __initconst = {
 	.chipselect     = mx51_efika_spi_cs,
 	.num_chipselect = ARRAY_SIZE(mx51_efika_spi_cs),
 };
+
 
 void __init efika_board_common_init(void)
 {
