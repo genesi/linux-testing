@@ -71,6 +71,9 @@ static struct scsi_host_template pata_imx_sht = {
 
 static struct ata_port_operations pata_imx_port_ops = {
 	.inherits		= &ata_sff_port_ops,
+#ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
+	.qc_issue		= ata_sff_qc_issue_ledtrigger,
+#endif
 	.sff_data_xfer		= ata_sff_data_xfer_noirq,
 	.cable_detect		= ata_cable_unknown,
 	.set_mode		= pata_imx_set_mode,
