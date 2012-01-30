@@ -225,7 +225,7 @@ static const struct imxi2c_platform_data mx51_efikamx_i2c_data __initconst = {
 
 static struct i2c_board_info mx51_efikamx_i2c_display[] __initdata = {
 	{
-	.type = "sii902x",
+	.type = "sii9022",
 	.addr = 0x39,
 	.irq = IMX_GPIO_TO_IRQ(EFIKAMX_HDMI_IRQ),
 	}
