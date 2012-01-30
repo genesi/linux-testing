@@ -71,6 +71,7 @@ void __init mx50_map_io(void)
 
 void __init mx51_map_io(void)
 {
+	init_consistent_dma_size(SZ_128M);
 	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
 }
 
