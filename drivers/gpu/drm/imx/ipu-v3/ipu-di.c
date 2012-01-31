@@ -147,8 +147,7 @@ static inline void ipu_di_write(struct ipu_di *di, u32 value, unsigned offset)
 static unsigned long ipu_di_clk_get_rate(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
-	struct clk *parent = clk_get_parent(clk);
-	unsigned long inrate = clk_get_rate(parent);
+	unsigned long inrate = clk_get_rate(di->clk);
 	unsigned long outrate;
 	u32 div = ipu_di_read(di, DI_BS_CLKGEN0);
 
@@ -172,10 +171,16 @@ static int ipu_di_clk_calc_div(unsigned long inrate, unsigned long outrate)
 	return div;
 }
 
+static struct clk *ipu_di_clk_get_parent(struct clk *clk)
+{
+	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
+	return di->clk;
+}
+
 static unsigned long ipu_di_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	struct clk *parent = clk_get_parent(clk);
-	unsigned long inrate = clk_get_rate(parent);
+	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
+	unsigned long inrate = clk_get_rate(di->clk);
 	unsigned long outrate;
 	int div;
 
@@ -192,8 +197,7 @@ static unsigned long ipu_di_clk_round_rate(struct clk *clk, unsigned long rate)
 static int ipu_di_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
-	struct clk *parent = clk_get_parent(clk);
-	unsigned long inrate = clk_get_rate(parent);
+	unsigned long inrate = clk_get_rate(di->clk);
 	int div;
 
 	div = ipu_di_clk_calc_div(inrate, rate);
@@ -203,12 +207,6 @@ static int ipu_di_clk_set_rate(struct clk *clk, unsigned long rate)
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: 0x%08x\n", __func__, inrate, rate, div);
 
 	return 0;
-}
-
-static struct clk *ipu_di_clk_get_parent(struct clk *clk)
-{
-	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
-	return di->clk;
 }
 
 static void ipu_di_data_wave_config(struct ipu_di *di,
