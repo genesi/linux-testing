@@ -86,17 +86,17 @@ static struct {
 	short t2CYC, tCYC, tDS, tDH, tDVS, tDVH, tCVS, tCVH, tFS_min, tLI_max,
 	    tMLI, tAZ, tZAH, tENV_min, tSR, tRFS, tRP, tACK, tSS, tDZFS;
 } udma_specs[] = {
-	[0] = { 235, 114,  15,   5,   70,   6,   70,    6,    0,     100, 
+	[0] = { 235, 114,  15,   5,   70,   6,   70,    6,    0,     100,
 		20,   10,   20,   20,       50,  75,   160, 20,  50,  80,},
-	[1] = {	156, 75,   10,   5,   48,   6,   48,    6,    0,     100, 
+	[1] = {	156, 75,   10,   5,   48,   6,   48,    6,    0,     100,
 		20,   10,   20,   20,       30,  70,   125, 20,  50,  63,},
-	[2] = {	117, 55,    7,   5,   34,   6,   34,    6,    0,     100, 
+	[2] = {	117, 55,    7,   5,   34,   6,   34,    6,    0,     100,
 		20,   10,   20,   20,       20,  60,   100, 20,  50,  47,},
-	[3] = {	86, 39,     7,   5,   20,   6,   20,    6,    0,     100, 
+	[3] = {	86, 39,     7,   5,   20,   6,   20,    6,    0,     100,
 		20,   10,   20,   20,       20,  60,   100, 20,  50,  35,},
-	[4] = {	57, 25,     5,   5,    7,   6,    7,    6,    0,     100, 
+	[4] = {	57, 25,     5,   5,    7,   6,    7,    6,    0,     100,
 		20,   10,   20,   20,       50,  60,   100, 20,  50,  25,},
-	[5] = { 38, 17,     4,   5,    5,   6,   10,   10,    0,     75, 
+	[5] = { 38, 17,     4,   5,    5,   6,   10,   10,    0,     75,
 		20,   10,   20,   20,       20,  50,    85, 20,  50,  40,},
 };
 #define NR_UDMA_SPECS (sizeof udma_specs / sizeof udma_specs[0])
@@ -193,9 +193,9 @@ static struct ata_port_operations pata_imx_port_ops = {
 #ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
 	.qc_issue			= ata_sff_qc_issue_ledtrigger,
 #endif
-	.sff_data_xfer		= ata_sff_data_xfer_noirq,
-	.cable_detect		= ata_cable_unknown,
-	.set_piomode		= pata_imx_set_piomode,
+	.sff_data_xfe	r		= ata_sff_data_xfer_noirq,
+	.cable_detect			= ata_cable_unknown,
+	.set_piomode			= pata_imx_set_piomode,
 };
 
 static void pata_imx_setup_port(struct ata_ioports *ioaddr)
