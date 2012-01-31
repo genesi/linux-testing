@@ -59,7 +59,7 @@ static uint8_t sii902x_read(struct i2c_client *client, uint8_t addr)
 
 	dat = i2c_smbus_read_byte_data(client, addr);
 
-	return dat;	
+	return dat;
 }
 
 static int hdmi_cap = 0; /* FIXME */
@@ -69,10 +69,11 @@ static void sii902x_poweron(struct sii902x_priv *priv)
 	struct i2c_client *client = priv->client;
 
 	/* Turn on DVI or HDMI */
-	if (hdmi_cap)
+	if (hdmi_cap) {
 		sii902x_write(client, 0x1A, 0x01 | 4);
-	else
+	} else {
 		sii902x_write(client, 0x1A, 0x00);
+	}
 
 	return;
 }
@@ -80,13 +81,13 @@ static void sii902x_poweron(struct sii902x_priv *priv)
 static void sii902x_poweroff(struct sii902x_priv *priv)
 {
 	struct i2c_client *client = priv->client;
-	
-	/* disable tmds before changing resolution */
-	if (hdmi_cap)
-		sii902x_write(client, 0x1A, 0x11);
-	else
-		sii902x_write(client, 0x1A, 0x10);
 
+	/* disable tmds before changing resolution */
+	if (hdmi_cap) {
+		sii902x_write(client, 0x1A, 0x11);
+	} else {
+		sii902x_write(client, 0x1A, 0x10);
+	}
 	return;
 }
 
@@ -148,9 +149,9 @@ static irqreturn_t sii902x_detect_handler(int irq, void *data)
 	if (dat & 0x1) {
 		/* cable connection changes */
 		if (dat & 0x4) {
-			printk("plugin\n");
+			DRM_DEBUG("plugin\n");
 		} else {
-			printk("plugout\n");
+			DRM_DEBUG("plugout\n");
 		}
 	}
 	sii902x_write(client, 0x3D, dat);
@@ -172,7 +173,6 @@ static void sii902x_mode_set(struct drm_encoder_connector *encon,
 	struct sii902x_priv *priv = to_sii902x(encon);
 	struct i2c_client *client = priv->client;
 	u16 data[4];
-	u32 refresh;
 	u8 *tmp;
 	int i;
 
@@ -185,14 +185,14 @@ static void sii902x_mode_set(struct drm_encoder_connector *encon,
 
 	/* set TPI video mode */
 	data[0] = mode->clock / 10;
+	data[1] = mode->vrefresh * 100;
 	data[2] = mode->htotal;
 	data[3] = mode->vtotal;
-	refresh = data[2] * data[3];
-	refresh = (mode->clock * 1000) / refresh;
-	data[1] = refresh * 100;
 	tmp = (u8 *)data;
-	for (i = 0; i < 8; i++)
+
+	for (i = 0; i < 8; i++) {
 		sii902x_write(client, i, tmp[i]);
+	}
 
 	/* input bus/pixel: full pixel wide (24bit), rising edge */
 	sii902x_write(client, 0x08, 0x70);
