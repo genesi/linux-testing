@@ -410,7 +410,7 @@ config LEDS_TRIGGER_TIMER
 
 config LEDS_TRIGGER_IDE_DISK
 	bool "LED IDE Disk Trigger"
-	depends on IDE_GD_ATA
+	depends on (IDE_GD_ATA || ATA_SFF)
 	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by IDE disk activity.
