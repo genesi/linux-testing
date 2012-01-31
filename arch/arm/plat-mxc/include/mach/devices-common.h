@@ -194,10 +194,11 @@ struct platform_device *__init imx_add_ipuv3(
                 const struct imx_ipuv3_data *data,
                 const struct imx_ipuv3_platform_data *pdata);
 
-#if 0
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
-#include <mach/mx3_camera.h>
+
+struct ipu_platform_data;
+struct mx3fb_platform_data;
+struct mx3_camera_pdata;
+
 struct imx_ipu_core_data {
 	resource_size_t iobase;
 	resource_size_t synirq;
@@ -212,7 +213,6 @@ struct platform_device *__init imx_alloc_mx3_camera(
 struct platform_device *__init imx_add_mx3_sdc_fb(
 		const struct imx_ipu_core_data *data,
 		struct mx3fb_platform_data *pdata);
-#endif
 
 #include <mach/mx1_camera.h>
 struct imx_mx1_camera_data {
