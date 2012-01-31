@@ -171,12 +171,6 @@ static int ipu_di_clk_calc_div(unsigned long inrate, unsigned long outrate)
 	return div;
 }
 
-static struct clk *ipu_di_clk_get_parent(struct clk *clk)
-{
-	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
-	return di->clk;
-}
-
 static unsigned long ipu_di_clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
@@ -204,7 +198,7 @@ static int ipu_di_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	ipu_di_write(di, div, DI_BS_CLKGEN0);
 
-	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: 0x%08x\n", __func__, inrate, rate, div);
+	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate*16)/div);
 
 	return 0;
 }
