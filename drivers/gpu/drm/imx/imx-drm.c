@@ -226,8 +226,7 @@ static int ipu_fb_set_par(struct drm_crtc *crtc,
 	sig_cfg.v_sync_width = mode->vsync_end - mode->vsync_start;
 	sig_cfg.v_end_width = mode->vsync_start - mode->vdisplay;
 	sig_cfg.v_to_h_sync = 0;
-
-	clk_set_rate(ipu_crtc->pixclk, mode->clock * 1000);
+	sig_cfg.clock_rate = mode->clock * 1000;
 
 	if (ipu_crtc->dp) {
 		ret = ipu_dp_setup_channel(ipu_crtc->dp, IPU_COLORSPACE_RGB,

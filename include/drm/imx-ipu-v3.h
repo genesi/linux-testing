@@ -89,6 +89,8 @@ struct ipu_di_signal_cfg {
 	u16 v_sync_width;
 	u16 v_end_width;
 	u32 v_to_h_sync;
+
+	u32 clock_rate;
 };
 
 typedef enum {

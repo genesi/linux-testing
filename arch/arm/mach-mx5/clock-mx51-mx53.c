@@ -963,11 +963,14 @@ static void clk_ipu_disable(struct clk *clk)
 static int clk_ipu_di_set_parent(struct clk *clk, struct clk *parent)
 {
 	u32 reg;
-	if (parent !=  &pll3_sw_clk)
+	printk(KERN_CRIT "%s clock %u\n", __func__, clk->id);
+	if (parent !=  &pll3_sw_clk) {
+		printk(KERN_CRIT "%s invalid parent (not PLL3)\n", __func__);
 		return -EINVAL;
+	}
 
 	/* should support other parent sources (LDB for MX53) but not now */
-
+	printk(KERN_CRIT "%s parent is pll3\n", __func__);
 	reg = __raw_readl(MXC_CCM_CSCMR2);
 	reg &= ~MXC_CCM_CSCMR2_DI_CLK_SEL_MASK(clk->id);
 	__raw_writel(reg, MXC_CCM_CSCMR2);
@@ -979,9 +982,14 @@ static unsigned long clk_ipu_di_get_rate(struct clk *clk)
 {
 	u32 reg, mux;
 	u32 div = 1;
+
+	printk(KERN_CRIT "%s clock %u\n", __func__, clk->id);
+
 	reg = __raw_readl(MXC_CCM_CSCMR2);
 	mux = (reg & MXC_CCM_CSCMR2_DI_CLK_SEL_MASK(clk->id)) >>
 		MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
+
+	printk(KERN_CRIT "%s mux %u\n", __func__, mux);
 	if (mux == 0) {
 		reg = __raw_readl(MXC_CCM_CDCDR) &
 			MXC_CCM_CDCDR_DI_CLK_PRED_MASK;
@@ -996,20 +1004,26 @@ static int clk_ipu_di_set_rate(struct clk *clk, unsigned long rate)
 	u32 reg, div;
 	u32 parent_rate = clk_get_rate(clk->parent);
 
+	printk(KERN_CRIT "%s clock %u\n", __func__, clk->id);
+
 	div = parent_rate / rate;
 	if (div == 0)
 		div++;
-	if (((parent_rate / div) != rate) || (div > 8))
+	if (((parent_rate / div) != rate) || (div > 8)) {
+		printk(KERN_CRIT "%s rates don't match (%u vs. %lu parent %u) or div > 8 (%u)\n", __func__, parent_rate/div, rate, parent_rate, div);
 		return -EINVAL;
+	}
 
 	if (clk->parent == &pll3_sw_clk) {
+		printk(KERN_CRIT "%s setting %lu\n", __func__, rate);
 		reg = __raw_readl(MXC_CCM_CDCDR);
 		reg &= ~MXC_CCM_CDCDR_DI_CLK_PRED_MASK;
 		reg |= (div - 1) << MXC_CCM_CDCDR_DI_CLK_PRED_OFFSET;
 		__raw_writel(reg, MXC_CCM_CDCDR);
-	} else
+	} else {
+		printk(KERN_CRIT "%s parent isn't PLL3, bailing\n", __func__);
 		return -EINVAL;
-
+	}
 	return 0;
 }
 
@@ -1018,11 +1032,15 @@ static unsigned long clk_ipu_di_round_rate(struct clk *clk, unsigned long rate)
 	u32 div;
 	u32 parent_rate = clk_get_rate(clk->parent);
 
+	printk(KERN_CRIT "%s clock %u\n", __func__, clk->id);
+
 	div = (parent_rate + rate/2) / rate;
 	if (div > 8)
 		div = 8;
 	else if (div == 0)
 		div++;
+
+	printk(KERN_CRIT "%s parent_rate %u div %u returning %u\n", __func__, parent_rate, div, parent_rate/div);
 	return parent_rate / div;
 }
 

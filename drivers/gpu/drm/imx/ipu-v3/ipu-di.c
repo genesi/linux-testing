@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <drm/imx-ipu-v3.h>
+#include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <mach/clock.h>
@@ -148,14 +149,16 @@ static unsigned long pixel_clk_get_rate(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	unsigned long inrate = clk_get_rate(di->clk);
-	unsigned long outrate;
+	unsigned long outrate = 0;
 	u32 div = ipu_di_read(di, DI_BS_CLKGEN0);
 
-	if (div == 0)
-		return 0;
+	if (div == 0) {
+		goto done;
+	}
 
 	outrate = (inrate * 16) / div;
 
+done:
 	dev_dbg(ipu_dev, "%s: inrate: %ld div: 0x%08x outrate: %ld\n",
 			__func__, inrate, div, outrate);
 
@@ -200,6 +203,9 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 	div = pixel_clk_calc_div(inrate, rate);
 
 	ipu_di_write(di, div, DI_BS_CLKGEN0);
+
+	/* Setup pixel clock timing */
+	/* Down time is half of period */
 	ipu_di_write(di, (div/16)<<16, DI_BS_CLKGEN1);
 
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate*16)/div);
@@ -211,12 +217,18 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	u32 di_gen = ipu_di_read(di, DI_GENERAL);
-	if (parent == di->ipu_clk)
+	if (parent == di->ipu_clk) {
+		dev_dbg(ipu_dev, "%s using internal clock\n", __func__);
 		di_gen &= ~DI_GEN_DI_CLK_EXT;
-	else if (!IS_ERR(di->clk) && parent == di->clk)
+	}
+	else if (!IS_ERR(di->clk) && parent == di->clk) {
+		dev_dbg(ipu_dev, "%s using external clock\n", __func__);
 		di_gen |= DI_GEN_DI_CLK_EXT;
-	else
+	}
+	else {
+		dev_dbg(ipu_dev, "%s invalid parent\n", __func__);
 		return -EINVAL;
+	}
 	ipu_di_write(di, di_gen, DI_GENERAL);
 	return 0;
 }
@@ -415,6 +427,10 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	u32 div;
 	u32 h_total, v_total;
 
+	struct clk *di_parent;
+	u32 rounded_rate;
+	u32 rounded_parent;
+
 	dev_dbg(ipu_dev, "disp %d: panel size = %d x %d\n",
 		di->id, sig->width, sig->height);
 
@@ -426,24 +442,48 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 	mutex_lock(&di_mutex);
 	ipu_get(di->ipu);
-sig->ext_clk = 1;
-	/* Init clocking */
-	if (sig->ext_clk) {
-		di->external_clk = true;
-	} else {
-		di->external_clk = false;
+
+	di_parent = clk_get_parent(di->clk);
+	clk_set_parent(&di->pixel_clk, di->ipu_clk);
+	rounded_rate = clk_round_rate(&di->pixel_clk, sig->clock_rate);
+
+	dev_dbg(ipu_dev, "di_parent %lu expected %u rounded %u\n", clk_get_rate(di_parent), sig->clock_rate, rounded_rate);
+
+	if (/*sig->ext_clk &&*/
+		((rounded_rate >= sig->clock_rate + sig->clock_rate/200) ||
+		(rounded_rate <= sig->clock_rate - sig->clock_rate/200))) {
+
+		dev_dbg(ipu_dev, "trying external clock\n");
+		rounded_rate = sig->clock_rate * 2;
+		dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
+		rounded_parent = clk_round_rate(di_parent, rounded_rate);
+		while (rounded_rate < rounded_parent) {
+			if (rounded_rate / rounded_parent < 8)
+				rounded_rate += sig->clock_rate * 2;
+			else
+				rounded_rate *= 2;
+			dev_dbg(ipu_dev, "loop: rounded to %u\n", rounded_rate);
+		}
+		dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
+		clk_set_rate(di_parent, rounded_rate);
+		rounded_rate = clk_round_rate(di->clk, sig->clock_rate);
+		dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
+		clk_set_rate(di->clk, rounded_rate);
+		clk_set_parent(&di->pixel_clk, di->clk);
 	}
 
-	div = ipu_di_read(di, DI_BS_CLKGEN0);
+	rounded_rate = clk_round_rate(&di->pixel_clk, sig->clock_rate);
+	dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
+        clk_set_rate(&di->pixel_clk, rounded_rate);
 
-	/* Setup pixel clock timing */
-	/* Down time is half of period */
-	ipu_di_write(di, (div / 16) << 16, DI_BS_CLKGEN1);
+	msleep(5);
+
+	/* integer portion of divider */
+        div = clk_get_rate(clk_get_parent(&di->pixel_clk)) / rounded_rate;
+	dev_dbg(ipu_dev, "integer portion of div is %u\n", div);
 
 	ipu_di_data_wave_config(di, SYNC_WAVE, div / 16 - 1, div / 16 - 1);
 	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, div / 16 * 2);
-
-	div = div / 16;		/* Now divider is integer portion */
 
 	di_gen = 0;
 	if (sig->ext_clk)
