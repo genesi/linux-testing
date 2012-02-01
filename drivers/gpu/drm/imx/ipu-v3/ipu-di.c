@@ -156,7 +156,7 @@ static unsigned long pixel_clk_get_rate(struct clk *clk)
 		goto done;
 	}
 
-	outrate = (inrate * 16) / div;
+	outrate = (inrate << 4) / div;
 
 done:
 	dev_dbg(ipu_dev, "%s: inrate: %ld div: 0x%08x outrate: %ld\n",
@@ -170,9 +170,9 @@ static int pixel_clk_calc_div(unsigned long inrate, unsigned long outrate)
 	int div;
 
 	if (inrate <= outrate)
-		return 1 * 16;
+		return 1 << 4;
 
-	div = DIV_ROUND_UP((inrate * 16), outrate);
+	div = DIV_ROUND_UP((inrate << 4), outrate);
 
 	return div;
 }
@@ -186,7 +186,7 @@ static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 
 	div = pixel_clk_calc_div(inrate, rate);
 
-	outrate = (inrate * 16) / div;
+	outrate = (inrate << 4) / div;
 
 	dev_dbg(ipu_dev, "%s: inrate: %ld div: 0x%08x outrate: %ld wanted: %ld\n",
 			__func__, inrate, div, outrate, rate);
@@ -206,7 +206,7 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	/* Setup pixel clock timing */
 	/* Down time is half of period */
-	ipu_di_write(di, (div/16)<<16, DI_BS_CLKGEN1);
+	ipu_di_write(di, (div >> 4)<<16, DI_BS_CLKGEN1);
 
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate*16)/div);
 
@@ -482,8 +482,8 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
         div = clk_get_rate(clk_get_parent(&di->pixel_clk)) / rounded_rate;
 	dev_dbg(ipu_dev, "integer portion of div is %u\n", div);
 
-	ipu_di_data_wave_config(di, SYNC_WAVE, div / 16 - 1, div / 16 - 1);
-	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, div / 16 * 2);
+	ipu_di_data_wave_config(di, SYNC_WAVE, (div >> 4) - 1, (div >> 4) - 1);
+	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, (div >> 4) * 2);
 
 	di_gen = 0;
 	if (sig->ext_clk)
