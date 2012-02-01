@@ -960,6 +960,72 @@ static void clk_ipu_disable(struct clk *clk)
 	__raw_writel(reg, MXC_CCM_CLPCR);
 }
 
+static int clk_ipu_di_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+	if (parent !=  &pll3_sw_clk)
+		return -EINVAL;
+
+	/* should support other parent sources (LDB for MX53) but not now */
+
+	reg = __raw_readl(MXC_CCM_CSCMR2);
+	reg &= ~MXC_CCM_CSCMR2_DI_CLK_SEL_MASK(clk->id);
+	__raw_writel(reg, MXC_CCM_CSCMR2);
+
+	return 0;
+}
+
+static unsigned long clk_ipu_di_get_rate(struct clk *clk)
+{
+	u32 reg, mux;
+	u32 div = 1;
+	reg = __raw_readl(MXC_CCM_CSCMR2);
+	mux = (reg & MXC_CCM_CSCMR2_DI_CLK_SEL_MASK(clk->id)) >>
+		MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
+	if (mux == 0) {
+		reg = __raw_readl(MXC_CCM_CDCDR) &
+			MXC_CCM_CDCDR_DI_CLK_PRED_MASK;
+		div = (reg >> MXC_CCM_CDCDR_DI_CLK_PRED_OFFSET) + 1;
+	}
+
+	return clk_get_rate(clk->parent) / div;
+}
+
+static int clk_ipu_di_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 reg, div;
+	u32 parent_rate = clk_get_rate(clk->parent);
+
+	div = parent_rate / rate;
+	if (div == 0)
+		div++;
+	if (((parent_rate / div) != rate) || (div > 8))
+		return -EINVAL;
+
+	if (clk->parent == &pll3_sw_clk) {
+		reg = __raw_readl(MXC_CCM_CDCDR);
+		reg &= ~MXC_CCM_CDCDR_DI_CLK_PRED_MASK;
+		reg |= (div - 1) << MXC_CCM_CDCDR_DI_CLK_PRED_OFFSET;
+		__raw_writel(reg, MXC_CCM_CDCDR);
+	} else
+		return -EINVAL;
+
+	return 0;
+}
+
+static unsigned long clk_ipu_di_round_rate(struct clk *clk, unsigned long rate)
+{
+	u32 div;
+	u32 parent_rate = clk_get_rate(clk->parent);
+
+	div = (parent_rate + rate/2) / rate;
+	if (div > 8)
+		div = 8;
+	else if (div == 0)
+		div++;
+	return parent_rate / div;
+}
+
 static struct clk ahbmux1_clk = {
 	.parent = &ahb_clk,
 	.secondary = &ahb_max_clk,
@@ -1466,10 +1532,32 @@ DEFINE_CLOCK_FULL(emi_fast_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG7_OFFSET,
 		NULL, NULL, _clk_ccgr_enable, _clk_ccgr_disable_inwait,
 		&ddr_clk, NULL);
 
-DEFINE_CLOCK(ipu_di0_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG5_OFFSET,
-		NULL, NULL, &pll3_sw_clk, NULL);
-DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
-		NULL, NULL, &pll3_sw_clk, NULL);
+static struct clk ipu_di0_clk = {
+	 __INIT_CLK_DEBUG(ipu_di0_clk)
+	.id = 0,
+	.parent = &pll3_sw_clk,
+	.enable_reg = MXC_CCM_CCGR6,
+	.enable_shift = MXC_CCM_CCGRx_CG5_OFFSET,
+	.get_rate = clk_ipu_di_get_rate,
+	.set_parent = clk_ipu_di_set_parent,
+	.round_rate = clk_ipu_di_round_rate,
+	.set_rate = clk_ipu_di_set_rate,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+};
+static struct clk ipu_di1_clk = {
+	 __INIT_CLK_DEBUG(ipu_di1_clk)
+	.id = 1,
+	.parent = &pll3_sw_clk,
+	.enable_reg = MXC_CCM_CCGR6,
+	.enable_shift = MXC_CCM_CCGRx_CG6_OFFSET,
+	.get_rate = clk_ipu_di_get_rate,
+	.set_parent = clk_ipu_di_set_parent,
+	.round_rate = clk_ipu_di_round_rate,
+	.set_rate = clk_ipu_di_set_rate,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+};
 
 /* PATA */
 DEFINE_CLOCK(pata_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG0_OFFSET,

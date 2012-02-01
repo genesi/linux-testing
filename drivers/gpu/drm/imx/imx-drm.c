@@ -615,9 +615,9 @@ static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 	ipu_crtc->ipu_res = res;
 
 	if (ipu_crtc->pipe == 0)
-		ipu_crtc->pixclk = clk_get(drm->dev, "pixclock0");
+		ipu_crtc->pixclk = clk_get(drm->dev, "pixel_clk0");
 	else
-		ipu_crtc->pixclk = clk_get(drm->dev, "pixclock1");
+		ipu_crtc->pixclk = clk_get(drm->dev, "pixel_clk1");
 	if (IS_ERR(ipu_crtc->pixclk)) {
 		ret = PTR_ERR(ipu_crtc->pixclk);
 		goto err_out;

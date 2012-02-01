@@ -38,7 +38,7 @@ struct ipu_di {
 	bool external_clk;
 	bool inuse;
 	bool initialized;
-	struct clk ipu_di_clk;
+	struct clk pixel_clk;
 	struct clk_lookup *clk_lookup;
 	struct ipu_soc *ipu;
 };
@@ -144,14 +144,17 @@ static inline void ipu_di_write(struct ipu_di *di, u32 value, unsigned offset)
 	writel(value, di->base + offset);
 }
 
-static unsigned long ipu_di_clk_get_rate(struct clk *clk)
+static unsigned long pixel_clk_get_rate(struct clk *clk)
 {
-	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	unsigned long inrate = clk_get_rate(di->clk);
 	unsigned long outrate;
 	u32 div = ipu_di_read(di, DI_BS_CLKGEN0);
 
-	outrate = (inrate / div) * 16;
+	if (div == 0)
+		return 0;
+
+	outrate = (inrate * 16) / div;
 
 	dev_dbg(ipu_dev, "%s: inrate: %ld div: 0x%08x outrate: %ld\n",
 			__func__, inrate, div, outrate);
@@ -159,7 +162,7 @@ static unsigned long ipu_di_clk_get_rate(struct clk *clk)
 	return outrate;
 }
 
-static int ipu_di_clk_calc_div(unsigned long inrate, unsigned long outrate)
+static int pixel_clk_calc_div(unsigned long inrate, unsigned long outrate)
 {
 	int div;
 
@@ -171,14 +174,14 @@ static int ipu_di_clk_calc_div(unsigned long inrate, unsigned long outrate)
 	return div;
 }
 
-static unsigned long ipu_di_clk_round_rate(struct clk *clk, unsigned long rate)
+static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	unsigned long inrate = clk_get_rate(di->clk);
 	unsigned long outrate;
 	int div;
 
-	div = ipu_di_clk_calc_div(inrate, rate);
+	div = pixel_clk_calc_div(inrate, rate);
 
 	outrate = (inrate * 16) / div;
 
@@ -188,20 +191,37 @@ static unsigned long ipu_di_clk_round_rate(struct clk *clk, unsigned long rate)
 	return outrate;
 }
 
-static int ipu_di_clk_set_rate(struct clk *clk, unsigned long rate)
+static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	struct ipu_di *di = container_of(clk, struct ipu_di, ipu_di_clk);
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	unsigned long inrate = clk_get_rate(di->clk);
 	int div;
 
-	div = ipu_di_clk_calc_div(inrate, rate);
+	div = pixel_clk_calc_div(inrate, rate);
 
 	ipu_di_write(di, div, DI_BS_CLKGEN0);
+	ipu_di_write(di, (div/16)<<16, DI_BS_CLKGEN1);
 
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate*16)/div);
 
 	return 0;
 }
+
+static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
+	u32 di_gen = ipu_di_read(di, DI_GENERAL);
+	if (parent == di->ipu_clk)
+		di_gen &= ~DI_GEN_DI_CLK_EXT;
+	else if (!IS_ERR(di->clk) && parent == di->clk)
+		di_gen |= DI_GEN_DI_CLK_EXT;
+	else
+		return -EINVAL;
+	ipu_di_write(di, di_gen, DI_GENERAL);
+	return 0;
+}
+
+/* pixel clk enable and disable here!? */
 
 static void ipu_di_data_wave_config(struct ipu_di *di,
 				     int wave_gen,
@@ -630,16 +650,20 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	di->ipu = ipu;
 
 	if (id == 0)
-		con_id = "pixclock0";
+		con_id = "pixel_clk0";
 	else
-		con_id = "pixclock1";
+		con_id = "pixel_clk1";
 
-	di->ipu_di_clk.get_rate = ipu_di_clk_get_rate;
-	di->ipu_di_clk.round_rate = ipu_di_clk_round_rate;
-	di->ipu_di_clk.set_rate = ipu_di_clk_set_rate;
+	strncpy(di->pixel_clk.name, con_id, 32);
+	di->pixel_clk.get_rate = pixel_clk_get_rate;
+	di->pixel_clk.round_rate = pixel_clk_round_rate;
+	di->pixel_clk.set_rate = pixel_clk_set_rate;
+	di->pixel_clk.set_parent = pixel_clk_set_parent;
+	di->pixel_clk.parent = di->clk;
 
-	di->clk_lookup = clkdev_alloc(&di->ipu_di_clk, con_id, "imx-drm.0");
+	di->clk_lookup = clkdev_alloc(&di->pixel_clk, con_id, "imx-drm.0");
 	clkdev_add(di->clk_lookup);
+	clk_debug_register(&di->pixel_clk);
 
 	return 0;
 }
