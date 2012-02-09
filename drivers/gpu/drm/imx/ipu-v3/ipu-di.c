@@ -208,7 +208,7 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 	/* Down time is half of period */
 	ipu_di_write(di, (div >> 4)<<16, DI_BS_CLKGEN1);
 
-	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate*16)/div);
+	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate << 4)/div);
 
 	return 0;
 }
