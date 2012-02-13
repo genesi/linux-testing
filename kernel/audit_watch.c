@@ -349,7 +349,9 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	}
 	mutex_unlock(&audit_filter_mutex);
 
+	audit_get_parent(parent);
 	fsnotify_destroy_mark(&parent->mark);
+	audit_put_parent(parent);
 }
 
 /* Get path information necessary for adding watches. */
