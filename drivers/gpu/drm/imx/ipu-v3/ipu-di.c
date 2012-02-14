@@ -148,7 +148,7 @@ static inline void ipu_di_write(struct ipu_di *di, u32 value, unsigned offset)
 static unsigned long pixel_clk_get_rate(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	unsigned long inrate = clk_get_rate(di->clk);
+	unsigned long inrate = clk_get_rate(clk->parent);
 	unsigned long outrate = 0;
 	u32 div = ipu_di_read(di, DI_BS_CLKGEN0);
 
@@ -179,8 +179,7 @@ static int pixel_clk_calc_div(unsigned long inrate, unsigned long outrate)
 
 static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	unsigned long inrate = clk_get_rate(di->clk);
+	unsigned long inrate = clk_get_rate(clk_get_parent(clk));
 	unsigned long outrate;
 	int div;
 
@@ -197,7 +196,7 @@ static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	unsigned long inrate = clk_get_rate(di->clk);
+	unsigned long inrate = clk_get_rate(clk_get_parent(clk));
 	int div;
 
 	div = pixel_clk_calc_div(inrate, rate);
@@ -233,7 +232,23 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-/* pixel clk enable and disable here!? */
+static int pixel_clk_enable(struct clk *clk)
+{
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
+	u32 disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
+	disp_gen |= clk->id ? IPU_DI1_COUNTER_RELEASE : IPU_DI0_COUNTER_RELEASE;
+	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
+
+	return 0;
+}
+
+static void pixel_clk_disable(struct clk *clk)
+{
+	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
+	u32 disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
+	disp_gen &= clk->id ? ~IPU_DI1_COUNTER_RELEASE : ~IPU_DI0_COUNTER_RELEASE;
+	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
+}
 
 static void ipu_di_data_wave_config(struct ipu_di *di,
 				     int wave_gen,
@@ -445,15 +460,20 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 	di_parent = clk_get_parent(di->clk);
 	clk_set_parent(&di->pixel_clk, di->ipu_clk);
+	di->external_clk = false;
+
 	rounded_rate = clk_round_rate(&di->pixel_clk, sig->clock_rate);
 
 	dev_dbg(ipu_dev, "di_parent %lu expected %u rounded %u\n", clk_get_rate(di_parent), sig->clock_rate, rounded_rate);
 
-	if (/*sig->ext_clk &&*/
+	/* if we are instructed to use an external clock and the rate from the IPU is
+	 * not within a reasonable range, actually use the external clock
+	 */
+	if (sig->ext_clk &&
 		((rounded_rate >= sig->clock_rate + sig->clock_rate/200) ||
-		(rounded_rate <= sig->clock_rate - sig->clock_rate/200))) {
+		(rounded_rate <= sig->clock_rate - sig->clock_rate/200 ))) {
 
-		dev_dbg(ipu_dev, "trying external clock\n");
+		dev_dbg(ipu_dev, "fixing external clock\n");
 		rounded_rate = sig->clock_rate * 2;
 		dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
 		rounded_parent = clk_round_rate(di_parent, rounded_rate);
@@ -470,6 +490,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 		dev_dbg(ipu_dev, "rounded to %u\n", rounded_rate);
 		clk_set_rate(di->clk, rounded_rate);
 		clk_set_parent(&di->pixel_clk, di->clk);
+		di->external_clk = true;
 	}
 
 	rounded_rate = clk_round_rate(&di->pixel_clk, sig->clock_rate);
@@ -479,14 +500,17 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	msleep(5);
 
 	/* integer portion of divider */
-        div = clk_get_rate(clk_get_parent(&di->pixel_clk)) / rounded_rate;
-	dev_dbg(ipu_dev, "integer portion of div is %u\n", div);
+        {
+		u32 rr = clk_get_rate(clk_get_parent(&di->pixel_clk));
+		div = rr / rounded_rate;
+		dev_dbg(ipu_dev, "integer portion of div is %u (%lu/%lu)\n", div, rr, rounded_rate);
+	}
 
-	ipu_di_data_wave_config(di, SYNC_WAVE, (div >> 4) - 1, (div >> 4) - 1);
-	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, (div >> 4) * 2);
+	ipu_di_data_wave_config(di, SYNC_WAVE, div - 1, div - 1);
+	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, div * 2);
 
 	di_gen = 0;
-	if (sig->ext_clk)
+	if (di->external_clk)
 		di_gen |= DI_GEN_DI_CLK_EXT | DI_GEN_DI_VSYNC_EXT;
 
 	if (sig->interlaced) {
@@ -594,6 +618,8 @@ int ipu_di_enable(struct ipu_di *di)
 	if (di->external_clk)
 		clk_enable(di->clk);
 
+	clk_enable(&di->pixel_clk);
+
 	ipu_module_enable(di->ipu, di->module);
 
 	return 0;
@@ -607,6 +633,8 @@ int ipu_di_disable(struct ipu_di *di)
 
 	if (di->external_clk)
 		clk_disable(di->clk);
+
+	clk_disable(&di->pixel_clk);
 
 	return 0;
 }
@@ -699,7 +727,9 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	di->pixel_clk.round_rate = pixel_clk_round_rate;
 	di->pixel_clk.set_rate = pixel_clk_set_rate;
 	di->pixel_clk.set_parent = pixel_clk_set_parent;
-	di->pixel_clk.parent = di->clk;
+	di->pixel_clk.parent = ipu_clk;
+	di->pixel_clk.enable = pixel_clk_enable;
+	di->pixel_clk.disable = pixel_clk_disable;
 
 	di->clk_lookup = clkdev_alloc(&di->pixel_clk, con_id, "imx-drm.0");
 	clkdev_add(di->clk_lookup);

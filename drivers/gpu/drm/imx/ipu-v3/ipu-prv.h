@@ -215,4 +215,8 @@ void ipu_capture_exit(struct ipu_soc *ipu);
 void ipu_get(struct ipu_soc *ipu);
 void ipu_put(struct ipu_soc *ipu);
 
+u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset);
+void ipu_cm_write(struct ipu_soc *ipu, u32 value, unsigned offset);
+
+
 #endif				/* __IPU_PRV_H__ */

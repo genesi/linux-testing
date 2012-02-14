@@ -32,12 +32,12 @@
 
 #include "ipu-prv.h"
 
-static inline u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset)
+u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset)
 {
 	return readl(ipu->cm_reg + offset);
 }
 
-static inline void ipu_cm_write(struct ipu_soc *ipu, u32 value, unsigned offset)
+void ipu_cm_write(struct ipu_soc *ipu, u32 value, unsigned offset)
 {
 	writel(value, ipu->cm_reg + offset);
 }
@@ -272,15 +272,6 @@ int ipu_module_enable(struct ipu_soc *ipu, u32 mask)
 
 	spin_lock_irqsave(&ipu->lock, lock_flags);
 
-	val = ipu_cm_read(ipu, IPU_DISP_GEN);
-
-	if (mask & IPU_CONF_DI0_EN)
-		val |= IPU_DI0_COUNTER_RELEASE;
-	if (mask & IPU_CONF_DI1_EN)
-		val |= IPU_DI1_COUNTER_RELEASE;
-
-	ipu_cm_write(ipu, val, IPU_DISP_GEN);
-
 	val = ipu_cm_read(ipu, IPU_CONF);
 	val |= mask;
 	ipu_cm_write(ipu, val, IPU_CONF);
@@ -301,15 +292,6 @@ int ipu_module_disable(struct ipu_soc *ipu, u32 mask)
 	val = ipu_cm_read(ipu, IPU_CONF);
 	val &= ~mask;
 	ipu_cm_write(ipu, val, IPU_CONF);
-
-	val = ipu_cm_read(ipu, IPU_DISP_GEN);
-
-	if (mask & IPU_CONF_DI0_EN)
-		val &= ~IPU_DI0_COUNTER_RELEASE;
-	if (mask & IPU_CONF_DI1_EN)
-		val &= ~IPU_DI1_COUNTER_RELEASE;
-
-	ipu_cm_write(ipu, val, IPU_DISP_GEN);
 
 	spin_unlock_irqrestore(&ipu->lock, lock_flags);
 
