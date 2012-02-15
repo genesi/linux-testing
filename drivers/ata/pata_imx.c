@@ -41,28 +41,147 @@ struct pata_imx_priv {
 	u32 ata_ctl;
 };
 
-static int pata_imx_set_mode(struct ata_link *link, struct ata_device **unused)
+/*
+ * This structure contains the timing parameters for
+ * ATA bus timing in the 5 PIO modes.  The timings
+ * are in nanoseconds, and are converted to clock
+ * cycles before being stored in the ATA controller
+ * timing registers.
+ */
+static struct {
+	short 	t0,  t1, t2_8, t2_16, t2i, t4, t9, tA;
+} pio_specs[] = {
+	[0] = { 600, 70, 290,  165,   0,   30, 20, 50,},
+	[1] = { 383, 50, 290,  125,   0,   20, 15, 50,},
+	[2] = {	240, 30, 290,  100,   0,   15, 10, 50,},
+	[3] = { 180, 30, 80,    80,   0,   10, 10, 50,},
+	[4] = { 120, 25, 70,    70,   0,   10, 10, 50,},
+};
+#define NR_PIO_SPECS (sizeof pio_specs / sizeof pio_specs[0])
+
+/*
+ * This structure contains the timing parameters for
+ * ATA bus timing in the 3 MDMA modes.  The timings
+ * are in nanoseconds, and are converted to clock
+ * cycles before being stored in the ATA controller
+ * timing registers.
+ */
+static struct {
+	short 	t0M, tD, tH, tJ, tKW, tM, tN, tJNH;
+} mdma_specs[] = {
+	[0] = {	480, 215, 20, 20, 215, 50, 15, 20,},
+	[1] = { 150, 80,  15, 5,  50, 30, 10, 15,},
+	[2] = {	120, 70, 10, 5, 25, 25, 10, 10,},
+};
+#define NR_MDMA_SPECS (sizeof mdma_specs / sizeof mdma_specs[0])
+
+/*
+ * This structure contains the timing parameters for
+ * ATA bus timing in the 6 UDMA modes.  The timings
+ * are in nanoseconds, and are converted to clock
+ * cycles before being stored in the ATA controller
+ * timing registers.
+ */
+static struct {
+	short t2CYC, tCYC, tDS, tDH, tDVS, tDVH, tCVS, tCVH, tFS_min, tLI_max,
+	    tMLI, tAZ, tZAH, tENV_min, tSR, tRFS, tRP, tACK, tSS, tDZFS;
+} udma_specs[] = {
+	[0] = { 235, 114,  15,   5,   70,   6,   70,    6,    0,     100,
+		20,   10,   20,   20,       50,  75,   160, 20,  50,  80,},
+	[1] = {	156, 75,   10,   5,   48,   6,   48,    6,    0,     100,
+		20,   10,   20,   20,       30,  70,   125, 20,  50,  63,},
+	[2] = {	117, 55,    7,   5,   34,   6,   34,    6,    0,     100,
+		20,   10,   20,   20,       20,  60,   100, 20,  50,  47,},
+	[3] = {	86, 39,     7,   5,   20,   6,   20,    6,    0,     100,
+		20,   10,   20,   20,       20,  60,   100, 20,  50,  35,},
+	[4] = {	57, 25,     5,   5,    7,   6,    7,    6,    0,     100,
+		20,   10,   20,   20,       50,  60,   100, 20,  50,  25,},
+	[5] = { 38, 17,     4,   5,    5,   6,   10,   10,    0,     75,
+		20,   10,   20,   20,       20,  50,    85, 20,  50,  40,},
+};
+#define NR_UDMA_SPECS (sizeof udma_specs / sizeof udma_specs[0])
+
+struct pata_imx_time_regs {
+	u8 time_off, time_on, time_1, time_2w;
+	u8 time_2r, time_ax, time_pio_rdx, time_4;
+	u8 time_9, time_m, time_jn, time_d;
+	u8 time_k, time_ack, time_env, time_rpx;
+	u8 time_zah, time_mlix, time_dvh, time_dzfs;
+	u8 time_dvs, time_cvh, time_ss, time_cyc;
+};
+
+static void commit_timing_config(struct pata_imx_time_regs *tp, struct ata_host *host)
 {
-	struct ata_device *dev;
-	struct ata_port *ap = link->ap;
+	u32 *lp = (u32 *) tp;
+	struct pata_imx_priv *priv = host->private_data;
+	u32 *ctlp = (u32 *) priv->host_regs;
+	int i;
+
+	for (i = 0; i < (sizeof(struct pata_imx_time_regs)/sizeof(int)); i++) {
+		__raw_writel(*lp, ctlp);
+		lp++;
+		ctlp++;
+	}
+}
+
+/*!
+ * Calculate values for the ATA bus timing registers and store
+ * them into the hardware.
+ *
+ * @param       xfer_mode   specifies XFER xfer_mode
+ * @param       pdev        specifies platform_device
+ *
+ * @return      EINVAL      speed out of range, or illegal mode
+ */
+static int set_ata_bus_timing(u8 xfer_mode, struct platform_device *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct pata_imx_priv *priv = host->private_data;
+	int speed;
+
+	/* get the bus clock cycle time, in ns */
+	int T = 1 * 1000 * 1000 * 1000 / clk_get_rate(priv->clk);
+	struct pata_imx_time_regs tr;
+
+	/* set register values to 0x1 (power on default) */
+	memset(&tr, 0x1, sizeof(struct pata_imx_time_regs));
+
+	/* every mode gets the same t_off and t_on */
+	tr.time_off = 3;
+	tr.time_on = 3;
+
+	if (xfer_mode < XFER_MW_DMA_0) {
+		speed = xfer_mode - XFER_PIO_0;
+		if (speed >= NR_PIO_SPECS)
+			return -EINVAL;
+
+		tr.time_1 = (pio_specs[speed].t1 + T) / T;
+		tr.time_2w = (pio_specs[speed].t2_8 + T) / T;
+		tr.time_2r = (pio_specs[speed].t2_8 + T) / T;
+		tr.time_ax = (pio_specs[speed].tA + T) / T + 2;
+		tr.time_pio_rdx = 1;
+		tr.time_4 = (pio_specs[speed].t4 + T) / T;
+		tr.time_9 = (pio_specs[speed].t9 + T) / T;
+	} else return -EINVAL;
+
+	commit_timing_config(&tr, host);
+
+	return 0;
+}
+
+static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
+{
 	struct pata_imx_priv *priv = ap->host->private_data;
 	u32 val;
 
-	ata_for_each_dev(dev, link, ENABLED) {
-		dev->pio_mode = dev->xfer_mode = XFER_PIO_0;
-		dev->xfer_shift = ATA_SHIFT_PIO;
-		dev->flags |= ATA_DFLAG_PIO;
+	val = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+	if (ata_pio_need_iordy(adev))
+		val |= PATA_IMX_ATA_CTRL_IORDY_EN;
+	else
+		val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
+	__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
 
-		val = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
-		if (ata_pio_need_iordy(dev))
-			val |= PATA_IMX_ATA_CTRL_IORDY_EN;
-		else
-			val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
-		__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
-
-		ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
-	}
-	return 0;
+	set_ata_bus_timing(adev->pio_mode, to_platform_device(ap->dev));
 }
 
 static struct scsi_host_template pata_imx_sht = {
@@ -70,10 +189,13 @@ static struct scsi_host_template pata_imx_sht = {
 };
 
 static struct ata_port_operations pata_imx_port_ops = {
-	.inherits		= &ata_sff_port_ops,
-	.sff_data_xfer		= ata_sff_data_xfer_noirq,
-	.cable_detect		= ata_cable_unknown,
-	.set_mode		= pata_imx_set_mode,
+	.inherits			= &ata_sff_port_ops,
+#ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
+	.qc_issue			= ata_sff_qc_issue_ledtrigger,
+#endif
+	.sff_data_xfer  		= ata_sff_data_xfer_noirq,
+	.cable_detect			= ata_cable_unknown,
+	.set_piomode			= pata_imx_set_piomode,
 };
 
 static void pata_imx_setup_port(struct ata_ioports *ioaddr)
@@ -128,7 +250,7 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	ap = host->ports[0];
 
 	ap->ops = &pata_imx_port_ops;
-	ap->pio_mask = ATA_PIO0;
+	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	priv->host_regs = devm_ioremap(&pdev->dev, io_res->start,
@@ -140,7 +262,6 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 
 	ap->ioaddr.cmd_addr = priv->host_regs + PATA_IMX_DRIVE_DATA;
 	ap->ioaddr.ctl_addr = priv->host_regs + PATA_IMX_DRIVE_CONTROL;
-
 	ap->ioaddr.altstatus_addr = ap->ioaddr.ctl_addr;
 
 	pata_imx_setup_port(&ap->ioaddr);
@@ -153,6 +274,7 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	__raw_writel(PATA_IMX_ATA_CTRL_FIFO_RST_B |
 			PATA_IMX_ATA_CTRL_ATA_RST_B,
 			priv->host_regs + PATA_IMX_ATA_CONTROL);
+
 	/* enable interrupts */
 	__raw_writel(PATA_IMX_ATA_INTR_ATA_INTRQ2,
 			priv->host_regs + PATA_IMX_ATA_INT_EN);

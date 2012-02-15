@@ -136,7 +136,7 @@ static void __init mx51_efikasb_usb(void)
 static const struct gpio_led mx51_efikasb_leds[] __initconst = {
 	{
 		.name = "efikasb:green",
-		.default_trigger = "default-on",
+		.default_trigger = "ide-disk",
 		.gpio = EFIKASB_GREEN_LED,
 		.active_low = 1,
 	},
@@ -279,7 +279,7 @@ static struct sys_timer mx51_efikasb_timer = {
 	.init	= mx51_efikasb_timer_init,
 };
 
-MACHINE_START(MX51_EFIKASB, "Genesi Efika Smartbook")
+MACHINE_START(MX51_EFIKASB, "Genesi Efika MX (Smartbook)")
 	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,

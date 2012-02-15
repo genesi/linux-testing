@@ -1,2 +1,20 @@
-#!/bin/sh
-make -j9 ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- LOADADDR=0x90008000 INSTALL_MOD_PATH=/build/hub/install INSTALL_PATH=/build/hub/install/boot $1
+#!/bin/bash
+
+DESTPATH=/build/hub/install
+DESTBOOT=${DESTPATH}/boot
+ARCH=arm
+CROSSPRE=arm-linux-gnueabi-
+ADDRESS=0x90008000
+
+if [ "$1" == "install" ] ; then
+	cp -v arch/arm/boot/uImage  ${DESTBOOT}
+	cp -v System.map ${DESTBOOT}
+	cp -v .config ${DESTBOOT}/config
+
+	WD=`pwd`
+	cd ${DESTBOOT}
+	./mkbootscript
+	cd ${WD}
+else
+	make -j9 ARCH=${ARCH} CROSS_COMPILE=${CROSSPRE} LOADADDR=${ADDRESS} INSTALL_MOD_PATH=${DESTPATH} $1
+fi
