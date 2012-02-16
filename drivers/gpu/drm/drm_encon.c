@@ -188,9 +188,9 @@ int drm_encoder_connector_init(struct drm_device *drm,
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
 	drm_connector_init(drm, &c->connector,
-			   &connector_funcs, DRM_MODE_CONNECTOR_VGA);
+			   &connector_funcs, c->connector_type);
 
-	drm_encoder_init(drm, encoder, &encoder_funcs, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(drm, encoder, &encoder_funcs, c->encoder_type);
 	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -217,11 +217,14 @@ EXPORT_SYMBOL_GPL(drm_encoder_connector_cleanup);
 static LIST_HEAD(encon_list);
 static DEFINE_MUTEX(encon_list_mutex);
 
-int drm_encon_register(const char *drm_name, int id,
-		struct drm_encoder_connector *encon)
+int drm_encon_register(struct drm_encoder_connector *encon,
+		const char *drm_name, int id,
+		int connector_type, int encoder_type)
 {
 	encon->drm_name = kstrdup(drm_name, GFP_KERNEL);
 	encon->id = id;
+	encon->connector_type = connector_type;
+	encon->encoder_type = encoder_type;
 
 	mutex_lock(&encon_list_mutex);
 	list_add_tail(&encon->list, &encon_list);
@@ -281,7 +284,8 @@ struct drm_encoder_connector *drm_encon_add_dummy(const char *drm_name, int id)
 		return NULL;
 
 	encon->funcs = &dummy_funcs;
-	ret = drm_encon_register(drm_name, id, encon);
+	ret = drm_encon_register(encon, drm_name, id,
+			DRM_MODE_CONNECTOR_VIRTUAL, DRM_MODE_ENCODER_VIRTUAL);
 	if (ret) {
 		kfree(encon);
 		return NULL;

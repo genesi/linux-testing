@@ -23,6 +23,8 @@ struct drm_encoder_connector_funcs {
 };
 
 struct drm_encoder_connector {
+	int connector_type;
+	int encoder_type;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 	struct drm_encoder_connector_funcs *funcs;
@@ -36,8 +38,9 @@ int drm_encoder_connector_init(struct drm_device *drm,
 		struct drm_encoder_connector *c);
 void drm_encoder_connector_cleanup(struct drm_device *drm,
 		struct drm_encoder_connector *c);
-int drm_encon_register(const char *drm_name, int id,
-		struct drm_encoder_connector *encon);
+int drm_encon_register(struct drm_encoder_connector *encon,
+		const char *drm_name, int id,
+		int connector_type, int encoder_type);
 int drm_encon_unregister(struct drm_encoder_connector *encon);
 struct drm_encoder_connector *drm_encon_get(struct drm_device *drm, int id);
 struct drm_encoder_connector *drm_encon_add_dummy(const char *drm_name, int id);
