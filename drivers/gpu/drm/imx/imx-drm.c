@@ -705,7 +705,7 @@ static int ipu_fbdev_init(struct drm_device *drm)
 	drm->mode_config.funcs = (void *)&ipu_mode_funcs;
 
 	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
+	drm->mode_config.max_height = 2048;
 
 	drm->mode_config.fb_base = 0xdeadbeef;
 
