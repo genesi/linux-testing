@@ -55,9 +55,9 @@ static void siihdmi_poweron(struct siihdmi_tx *tx)
 
 	/* Turn on DVI or HDMI */
 	if (tx->sink.type == SINK_TYPE_HDMI) {
-		siihdmi_write(client, 0x1A, 0x01 | 4);
+		siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, 0x01 | 4);
 	} else {
-		siihdmi_write(client, 0x1A, 0x00);
+		siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, 0x00);
 	}
 
 	return;
@@ -69,9 +69,9 @@ static void siihdmi_poweroff(struct siihdmi_tx *tx)
 
 	/* disable tmds before changing resolution */
 	if (tx->sink.type == SINK_TYPE_HDMI) {
-		siihdmi_write(client, 0x1A, 0x11);
+		siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, 0x11);
 	} else {
-		siihdmi_write(client, 0x1A, 0x10);
+		siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, 0x10);
 	}
 	return;
 }
@@ -86,19 +86,19 @@ static int siihdmi_get_modes(struct drm_encoder_connector *encon)
 	int ret;
 	int old, dat, cnt = 100;
 
-	old = siihdmi_read(client, 0x1A);
+	old = siihdmi_read(client, SIIHDMI_TPI_REG_SYS_CTRL);
 
-	siihdmi_write(client, 0x1A, old | 0x4);
+	siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, old | 0x4);
 	do {
 		cnt--;
 		msleep(10);
-		dat = siihdmi_read(client, 0x1A);
+		dat = siihdmi_read(client, SIIHDMI_TPI_REG_SYS_CTRL);
 	} while ((!(dat & 0x2)) && cnt);
 
 	if (!cnt)
 		return -ETIMEDOUT;
 
-	siihdmi_write(client, 0x1A, old | 0x06);
+	siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, old | 0x06);
 
 	edid = drm_get_edid(connector, adap);
 	if (edid) {
@@ -111,15 +111,15 @@ static int siihdmi_get_modes(struct drm_encoder_connector *encon)
 	cnt = 100;
 	do {
 		cnt--;
-		siihdmi_write(client, 0x1A, old & ~0x6);
+		siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, old & ~0x6);
 		msleep(10);
-		dat = siihdmi_read(client, 0x1A);
+		dat = siihdmi_read(client, SIIHDMI_TPI_REG_SYS_CTRL);
 	} while ((dat & 0x6) && cnt);
 
 	if (!cnt)
 		ret = -1;
 
-	siihdmi_write(client, 0x1A, old);
+	siihdmi_write(client, SIIHDMI_TPI_REG_SYS_CTRL, old);
 
 	return 0;
 }
@@ -130,7 +130,7 @@ static irqreturn_t siihdmi_detect_handler(int irq, void *data)
 	struct i2c_client *client = tx->client;
 	int dat;
 
-	dat = siihdmi_read(client, 0x3D);
+	dat = siihdmi_read(client, SIIHDMI_TPI_REG_ISR);
 	if (dat & 0x1) {
 		/* cable connection changes */
 		if (dat & 0x4) {
@@ -139,7 +139,7 @@ static irqreturn_t siihdmi_detect_handler(int irq, void *data)
 			DRM_DEBUG("plugout\n");
 		}
 	}
-	siihdmi_write(client, 0x3D, dat);
+	siihdmi_write(client, SIIHDMI_TPI_REG_ISR, dat);
 
 	return IRQ_HANDLED;
 }
@@ -162,7 +162,7 @@ static void siihdmi_mode_set(struct drm_encoder_connector *encon,
 	int i;
 
 	/* Power up */
-	siihdmi_write(client, 0x1E, 0x00);
+	siihdmi_write(client, SIIHDMI_TPI_REG_PWR_STATE, 0x00);
 
 	dev_dbg(&client->dev, "%s: %dx%d, pixclk %d\n", __func__,
 			mode->hdisplay, mode->vdisplay,
@@ -180,15 +180,15 @@ static void siihdmi_mode_set(struct drm_encoder_connector *encon,
 	}
 
 	/* input bus/pixel: full pixel wide (24bit), rising edge */
-	siihdmi_write(client, 0x08, 0x70);
+	siihdmi_write(client, SIIHDMI_TPI_REG_INPUT_BUS_PIXEL_REPETITION, 0x70);
 	/* Set input format to RGB */
-	siihdmi_write(client, 0x09, 0x00);
+	siihdmi_write(client, SIIHDMI_TPI_REG_AVI_INPUT_FORMAT, 0x00);
 	/* set output format to RGB */
-	siihdmi_write(client, 0x0A, 0x00);
+	siihdmi_write(client, SIIHDMI_TPI_REG_AVI_OUTPUT_FORMAT, 0x00);
 	/* audio setup */
-	siihdmi_write(client, 0x25, 0x00);
-	siihdmi_write(client, 0x26, 0x40);
-	siihdmi_write(client, 0x27, 0x00);
+	siihdmi_write(client, SIIHDMI_TPI_REG_I2S_ORIGINAL_FREQ_SAMPLE_LENGTH, 0x00);
+	siihdmi_write(client, SIIHDMI_TPI_REG_I2S_AUDIO_PACKET_LAYOUT_CTRL, 0x40);
+	siihdmi_write(client, SIIHDMI_TPI_REG_I2S_AUDIO_SAMPLING_HBR, 0x00);
 }
 
 static void siihdmi_dpms(struct drm_encoder_connector *encon, int mode)
@@ -246,8 +246,7 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	/* read device ID */
-	dat = siihdmi_read(client, 0x1b);
+	dat = siihdmi_read(client, SIIHDMI_TPI_REG_DEVICE_ID);
 	if (dat != 0xb0) {
 		dev_err(&client->dev, "not found. id is 0x%02x instead of 0xb0\n",
 				dat);
@@ -258,7 +257,7 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ret = request_threaded_irq(client->irq, NULL, siihdmi_detect_handler,
 				IRQF_TRIGGER_FALLING,
 				"siihdmi_det", tx);
-		siihdmi_write(client, 0x3c, 0x01);
+		siihdmi_write(client, SIIHDMI_TPI_REG_IER, 0x01);
 	}
 
 	tx->encon.funcs = &siihdmi_funcs;
