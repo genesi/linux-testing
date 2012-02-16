@@ -224,7 +224,21 @@ static const struct imxi2c_platform_data mx51_efikamx_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
+static void mx51_efikamx_display_reset(void)
+{
+	gpio_set_value(EFIKAMX_DISPLAY_RESET, 1);
+	msleep(1);
+	gpio_set_value(EFIKAMX_DISPLAY_RESET, 0);
+	/*
+	 * SII9022 programmers reference page 42:
+	 * Tplug_dly is min 400, avg 480, max 600ms
+	 * - be safe since we have no idea
+	 */
+	msleep(600);
+}
+
 static struct siihdmi_platform_data mx51_efikamx_siihdmi_data = {
+	.reset = mx51_efikamx_display_reset,
 	.drm_name = "imx-drm.0",
 	.encon_id = 0,
 };
