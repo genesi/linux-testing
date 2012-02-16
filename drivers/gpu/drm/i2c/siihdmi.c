@@ -156,6 +156,11 @@ static irqreturn_t siihdmi_detect_handler(int irq, void *data)
 static int siihdmi_mode_valid(struct drm_encoder_connector *encon,
 			  struct drm_display_mode *mode)
 {
+	struct siihdmi_tx *tx = to_siihdmi(encon);
+
+	if (mode->clock > tx->platform->max_pixclock)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
