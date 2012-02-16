@@ -722,7 +722,9 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	else
 		con_id = "pixel_clk1";
 
+#if defined(CONFIG_CLK_DEBUG)
 	strncpy(di->pixel_clk.name, con_id, 32);
+#endif
 	di->pixel_clk.get_rate = pixel_clk_get_rate;
 	di->pixel_clk.round_rate = pixel_clk_round_rate;
 	di->pixel_clk.set_rate = pixel_clk_set_rate;
