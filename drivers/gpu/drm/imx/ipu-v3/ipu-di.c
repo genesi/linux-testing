@@ -503,7 +503,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
         {
 		u32 rr = clk_get_rate(clk_get_parent(&di->pixel_clk));
 		div = rr / rounded_rate;
-		dev_dbg(ipu_dev, "integer portion of div is %u (%lu/%lu)\n", div, rr, rounded_rate);
+		dev_dbg(ipu_dev, "integer portion of div is %u (%u/%u)\n", div, rr, rounded_rate);
 	}
 
 	ipu_di_data_wave_config(di, SYNC_WAVE, div - 1, div - 1);
