@@ -224,15 +224,19 @@ static const struct imxi2c_platform_data mx51_efikamx_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
+static struct siihdmi_platform_data mx51_efikamx_siihdmi_data = {
+	.drm_name = "imx-drm.0",
+	.encon_id = 0,
+};
+
+
 static struct i2c_board_info mx51_efikamx_i2c_display[] __initdata = {
 	{
 	.type = "sii9022",
 	.addr = 0x39,
+	.platform_data = &mx51_efikamx_siihdmi_data,
 	.irq = IMX_GPIO_TO_IRQ(EFIKAMX_HDMI_IRQ),
 	}
-};
-
-static struct siihdmi_platform_data mx51_efikamx_siihdmi_data = {
 };
 
 
