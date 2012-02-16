@@ -435,21 +435,19 @@ struct siihdmi_platform_data {
 	/* reset function */
 	void (*reset)(void);
 
-	/* HDMI SPD InfoFrame Data */
-	char *vendor;
-	char *description;
-
 	/* DRM fixed id */
 	char *drm_name;
 	int encon_id;
 
 	/* hotplug IRQ */
-	struct resource hotplug;
+	//struct resource hotplug;
 
-	/* maximum pixel clock rate */
+	/* maximum pixel clock rate - should be in crtc or drm_mode_config_funcs damn it*/
 	int max_pixclock;
-	int max_width;
-	int max_height;
+
+	/* HDMI SPD InfoFrame Data */
+	char *vendor;
+	char *description;
 };
 
 /* not sure what this was for */
