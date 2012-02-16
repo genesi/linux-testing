@@ -534,7 +534,7 @@ static int ipu_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_framebuffer *fb = crtc->fb;
 	struct ipu_framebuffer *ipu_fb;
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc); 
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	unsigned long phys;
 
 	ipu_fb = to_ipu_framebuffer(fb);
