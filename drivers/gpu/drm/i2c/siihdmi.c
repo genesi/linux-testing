@@ -239,6 +239,7 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	tx->client = client;
+	tx->platform = client->dev.platform_data;
 
 	/* Set 902x in hardware TPI mode on and jump out of D3 state */
 	if (siihdmi_write(client, 0xc7, 0x00) < 0) {
