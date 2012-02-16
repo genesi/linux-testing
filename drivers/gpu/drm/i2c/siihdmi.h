@@ -440,7 +440,8 @@ struct siihdmi_platform_data {
 	char *description;
 
 	/* DRM fixed id */
-	char *framebuffer;
+	char *drm_name;
+	int encon_id;
 
 	/* hotplug IRQ */
 	struct resource hotplug;
