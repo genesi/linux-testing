@@ -244,6 +244,8 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 	}
 
+	tx->platform->reset();
+	
 	/* Set 902x in hardware TPI mode on and jump out of D3 state */
 	if (siihdmi_write(client, SIIHDMI_TPI_REG_RQB, 0x00) < 0) {
 		dev_err(&client->dev, "siihdmi: cound not find device\n");
