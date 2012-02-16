@@ -29,8 +29,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SII902X_H
-#define SII902X_H
+#ifndef SIIHDMI_H
+#define SIIHDMI_H
+
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder_slave.h>
+#include <drm/drm_encon.h>
 
 #include <linux/ioport.h>
 
@@ -446,9 +451,16 @@ struct siihdmi_platform_data {
 	int max_height;
 };
 
+/* not sure what this was for */
+struct siihdmi_encoder_params {
+};
+
 struct siihdmi_tx {
 	struct i2c_client *client;
 	struct siihdmi_platform_data *platform;
+
+	struct siihdmi_encoder_params config;
+	struct drm_encoder_connector encon;
 
 	struct fb_info *info;
 	struct notifier_block nb;

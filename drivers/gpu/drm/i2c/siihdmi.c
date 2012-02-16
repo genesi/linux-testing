@@ -25,23 +25,9 @@
  */
 
 #include <linux/module.h>
+#include "siihdmi.h"
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_encoder_slave.h>
-#include <drm/drm_encon.h>
-
-struct siihdmi_encoder_params {
-};
-
-struct siihdmi_priv {
-	struct siihdmi_platform *platform;
-	struct siihdmi_encoder_params config;
-	struct i2c_client *client;
-	struct drm_encoder_connector encon;
-};
-
-#define to_siihdmi(x) container_of(x, struct siihdmi_priv, encon)
+#define to_siihdmi(x) container_of(x, struct siihdmi_tx, encon)
 
 static int siihdmi_write(struct i2c_client *client, uint8_t addr, uint8_t val)
 {
@@ -65,7 +51,7 @@ static uint8_t siihdmi_read(struct i2c_client *client, uint8_t addr)
 
 static int hdmi_cap = 0; /* FIXME */
 
-static void siihdmi_poweron(struct siihdmi_priv *priv)
+static void siihdmi_poweron(struct siihdmi_tx *priv)
 {
 	struct i2c_client *client = priv->client;
 
@@ -79,7 +65,7 @@ static void siihdmi_poweron(struct siihdmi_priv *priv)
 	return;
 }
 
-static void siihdmi_poweroff(struct siihdmi_priv *priv)
+static void siihdmi_poweroff(struct siihdmi_tx *priv)
 {
 	struct i2c_client *client = priv->client;
 
@@ -94,7 +80,7 @@ static void siihdmi_poweroff(struct siihdmi_priv *priv)
 
 static int siihdmi_get_modes(struct drm_encoder_connector *encon)
 {
-	struct siihdmi_priv *priv = to_siihdmi(encon);
+	struct siihdmi_tx *priv = to_siihdmi(encon);
 	struct i2c_client *client = priv->client;
 	struct i2c_adapter *adap = client->adapter;
 	struct drm_connector *connector = &encon->connector;
@@ -142,7 +128,7 @@ static int siihdmi_get_modes(struct drm_encoder_connector *encon)
 
 static irqreturn_t siihdmi_detect_handler(int irq, void *data)
 {
-	struct siihdmi_priv *priv = data;
+	struct siihdmi_tx *priv = data;
 	struct i2c_client *client = priv->client;
 	int dat;
 
@@ -171,7 +157,7 @@ static void siihdmi_mode_set(struct drm_encoder_connector *encon,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode)
 {
-	struct siihdmi_priv *priv = to_siihdmi(encon);
+	struct siihdmi_tx *priv = to_siihdmi(encon);
 	struct i2c_client *client = priv->client;
 	u16 data[4];
 	u8 *tmp;
@@ -209,7 +195,7 @@ static void siihdmi_mode_set(struct drm_encoder_connector *encon,
 
 static void siihdmi_dpms(struct drm_encoder_connector *encon, int mode)
 {
-	struct siihdmi_priv *priv = to_siihdmi(encon);
+	struct siihdmi_tx *priv = to_siihdmi(encon);
 
 	if (mode)
 		siihdmi_poweroff(priv);
@@ -219,14 +205,14 @@ static void siihdmi_dpms(struct drm_encoder_connector *encon, int mode)
 
 static void siihdmi_prepare(struct drm_encoder_connector *encon)
 {
-	struct siihdmi_priv *priv = to_siihdmi(encon);
+	struct siihdmi_tx *priv = to_siihdmi(encon);
 
 	siihdmi_poweroff(priv);
 }
 
 static void siihdmi_commit(struct drm_encoder_connector *encon)
 {
-	struct siihdmi_priv *priv = to_siihdmi(encon);
+	struct siihdmi_tx *priv = to_siihdmi(encon);
 
 	siihdmi_poweron(priv);
 }
@@ -246,7 +232,7 @@ static int
 siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int dat, ret;
-	struct siihdmi_priv *priv;
+	struct siihdmi_tx *priv;
 	const char *drm_name = "imx-drm.0"; /* FIXME: pass from pdata */
 	int encon_id = 0; /* FIXME: pass from pdata */
 
@@ -290,7 +276,7 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 static int siihdmi_remove(struct i2c_client *client)
 {
-	struct siihdmi_priv *priv;
+	struct siihdmi_tx *priv;
 	int ret;
 
 	priv = i2c_get_clientdata(client);
