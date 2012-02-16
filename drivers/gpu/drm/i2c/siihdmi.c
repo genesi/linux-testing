@@ -231,8 +231,6 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int dat, ret;
 	struct siihdmi_tx *tx;
-	const char *drm_name = "imx-drm.0"; /* FIXME: pass from pdata */
-	int encon_id = 0; /* FIXME: pass from pdata */
 
 	tx = kzalloc(sizeof(*tx), GFP_KERNEL);
 	if (!tx)
@@ -240,6 +238,11 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tx->client = client;
 	tx->platform = client->dev.platform_data;
+
+	if (!tx->platform) {
+		dev_err(&client->dev, "siihdmi: platform data is required!\n");
+		return -ENOMEM;
+	}
 
 	/* Set 902x in hardware TPI mode on and jump out of D3 state */
 	if (siihdmi_write(client, SIIHDMI_TPI_REG_RQB, 0x00) < 0) {
@@ -265,7 +268,7 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, tx);
 
-	drm_encon_register(drm_name, encon_id, &tx->encon);
+	drm_encon_register(tx->platform->drm_name, tx->platform->encon_id, &tx->encon);
 
 	dev_info(&client->dev, "initialized\n");
 
