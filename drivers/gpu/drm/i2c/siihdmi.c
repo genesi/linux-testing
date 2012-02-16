@@ -272,7 +272,8 @@ siihdmi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tx->encon.funcs = &siihdmi_funcs;
 
-	drm_encon_register(tx->platform->drm_name, tx->platform->encon_id, &tx->encon);
+	drm_encon_register(&tx->encon, tx->platform->drm_name, tx->platform->encon_id,
+				DRM_MODE_CONNECTOR_HDMIA, DRM_MODE_ENCODER_TMDS);
 
 	dev_info(&client->dev, "initialized\n");
 
