@@ -469,9 +469,9 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	/* if we are instructed to use an external clock and the rate from the IPU is
 	 * not within a reasonable range, actually use the external clock
 	 */
-	if (sig->ext_clk &&
+	/*if (sig->ext_clk &&
 		((rounded_rate >= sig->clock_rate + sig->clock_rate/200) ||
-		(rounded_rate <= sig->clock_rate - sig->clock_rate/200 ))) {
+		(rounded_rate <= sig->clock_rate - sig->clock_rate/200 ))) */{
 
 		dev_dbg(ipu_dev, "fixing external clock\n");
 		rounded_rate = sig->clock_rate * 2;
@@ -509,9 +509,10 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	ipu_di_data_wave_config(di, SYNC_WAVE, div - 1, div - 1);
 	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, div * 2);
 
+	/* this should be derived from the clock set_parent doing it and not hacked back in here */
 	di_gen = 0;
 	if (di->external_clk)
-		di_gen |= DI_GEN_DI_CLK_EXT | DI_GEN_DI_VSYNC_EXT;
+		di_gen |= DI_GEN_DI_CLK_EXT;
 
 	if (sig->interlaced) {
 		ipu_di_sync_config_interlaced(di, sig);
