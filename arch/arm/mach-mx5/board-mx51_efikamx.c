@@ -40,6 +40,7 @@
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
+#include "../../../drivers/gpu/drm/i2c/siihdmi.h"
 #include "efika.h"
 
 #define EFIKAMX_PCBID0		IMX_GPIO_NR(3, 16)
@@ -229,6 +230,9 @@ static struct i2c_board_info mx51_efikamx_i2c_display[] __initdata = {
 	.addr = 0x39,
 	.irq = IMX_GPIO_TO_IRQ(EFIKAMX_HDMI_IRQ),
 	}
+};
+
+static struct siihdmi_platform_data mx51_efikamx_siihdmi_data = {
 };
 
 

@@ -166,11 +166,11 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
-config DRM_I2C_SII902X
-	tristate "Silicon Image SII9022 and compatible HDMI transmitter"
+config DRM_I2C_SIIHDMI
+	tristate "Silicon Image HDMI transmitter"
 	depends on DRM && I2C
 	help
-	  Support for Silicon Image SII9022 and compatible HDMI transmitter
+	  Support for Silicon Image SII9022 and compatible HDMI transmitters
 
 source "drivers/gpu/drm/imx/Kconfig"
 source "drivers/gpu/drm/exynos/Kconfig"
