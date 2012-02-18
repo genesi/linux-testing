@@ -11,7 +11,7 @@
 
 #define imx_ipuv3_data_entry_single(soc)				\
 	{								\
-		.iobase = soc ## _IPU_CTRL_BASE_ADDR,			\
+		.iobase = soc ## _IPU_CTRL_BASE_ADDR + soc ## _IPU_CTRL_OFFSET,			\
 		.irq_err = soc ## _INT_IPU_ERR,				\
 		.irq = soc ## _INT_IPU_SYN,				\
 	}
