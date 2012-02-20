@@ -218,10 +218,12 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 	u32 di_gen = ipu_di_read(di, DI_GENERAL);
 	if (parent == di->ipu_clk) {
 		dev_dbg(ipu_dev, "%s using internal clock\n", __func__);
+		di->external_clk = false;
 		di_gen &= ~DI_GEN_DI_CLK_EXT;
 	}
 	else if (!IS_ERR(di->clk) && parent == di->clk) {
 		dev_dbg(ipu_dev, "%s using external clock\n", __func__);
+		di->external_clk = true;
 		di_gen |= DI_GEN_DI_CLK_EXT;
 	}
 	else {
@@ -514,10 +516,10 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	ipu_di_data_wave_config(di, SYNC_WAVE, div - 1, div - 1);
 	ipu_di_data_pin_config(di, SYNC_WAVE, DI_PIN15, 3, 0, div * 2);
 
-	/* this should be derived from the clock set_parent doing it and not hacked back in here */
-	di_gen = 0;
+	di_gen = DI_GEN_DI_VSYNC_EXT;
+	/* this should be masked off instead of reset */
 	if (di->external_clk)
-		di_gen |= DI_GEN_DI_CLK_EXT | DI_GEN_DI_VSYNC_EXT;
+		di_gen |= DI_GEN_DI_CLK_EXT;
 
 	if (sig->interlaced) {
 		ipu_di_sync_config_interlaced(di, sig);
