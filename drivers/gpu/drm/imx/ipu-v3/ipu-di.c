@@ -512,7 +512,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	/* this should be derived from the clock set_parent doing it and not hacked back in here */
 	di_gen = 0;
 	if (di->external_clk)
-		di_gen |= DI_GEN_DI_CLK_EXT;
+		di_gen |= DI_GEN_DI_CLK_EXT | DI_GEN_DI_VSYNC_EXT;
 
 	if (sig->interlaced) {
 		ipu_di_sync_config_interlaced(di, sig);
