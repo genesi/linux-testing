@@ -391,8 +391,15 @@ int ipu_dmfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base,
 		priv->channels[i].data = &dmfcdata[i];
 	}
 
-	writel(0x0, priv->base + DMFC_WR_CHAN);
-	writel(0x0, priv->base + DMFC_DP_CHAN);
+	/* disable DMFC IC channel */
+	writel(0x2, priv->base + DMFC_IC_CTRL);
+
+	/*
+	 * these values are "IPU DMFC DC HIGH RESOLUTION: 1(0~3), 5B(4,5), 5F(6,7)"
+	 * in FSL's source
+	 */
+	writel(0x00000090, priv->base + DMFC_WR_CHAN);
+	writel(0x0000968a, priv->base + DMFC_DP_CHAN);
 
 	/*
 	 * We have a total bandwidth of clkrate * 4pixel divided
