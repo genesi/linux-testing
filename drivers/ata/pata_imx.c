@@ -49,6 +49,7 @@ struct pata_imx_priv {
 	u8 __iomem *host_regs;
 	/* save area for suspend/resume */
 	u32 ata_control;
+	u32 int_enable;
 
 	struct pata_imx_dma dma_params_rx;
 	struct pata_imx_dma dma_params_tx;
@@ -320,7 +321,8 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 			PATA_IMX_ATA_CONTROL);
 
 	/* enable interrupts */
-	pata_imx_write(priv, PATA_IMX_ATA_INTR_ATA_INTRQ2, PATA_IMX_ATA_INT_EN);
+	priv->int_enable = PATA_IMX_ATA_INTR_ATA_INTRQ2;
+	pata_imx_write(priv, priv->int_enable, PATA_IMX_ATA_INT_EN);
 
 	/* activate */
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0,
@@ -356,8 +358,11 @@ static int pata_imx_suspend(struct device *dev)
 
 	ret = ata_host_suspend(host, PMSG_SUSPEND);
 	if (!ret) {
+		priv->int_enable = pata_imx_read(priv, PATA_IMX_ATA_INT_EN);
 		pata_imx_write(priv, 0, PATA_IMX_ATA_INT_EN);
+
 		priv->ata_control = pata_imx_read(priv, PATA_IMX_ATA_CONTROL);
+
 		clk_disable(priv->clk);
 	}
 
@@ -372,7 +377,8 @@ static int pata_imx_resume(struct device *dev)
 	clk_enable(priv->clk);
 
 	pata_imx_write(priv, priv->ata_control, PATA_IMX_ATA_CONTROL);
-	pata_imx_write(priv, PATA_IMX_ATA_INTR_ATA_INTRQ2, PATA_IMX_ATA_INT_EN);
+
+	pata_imx_write(priv, priv->int_enable, PATA_IMX_ATA_INT_EN);
 
 	ata_host_resume(host);
 
