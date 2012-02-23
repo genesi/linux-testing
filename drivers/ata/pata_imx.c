@@ -11,8 +11,8 @@
  *
  * TODO:
  * - dmaengine support
- * - check if timing stuff needed
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -22,9 +22,11 @@
 #include <linux/libata.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
 
 #define DRV_NAME "pata_imx"
 
+#define PATA_IMX_FIFO_DATA		0x1C
 #define PATA_IMX_ATA_CONTROL		0x24
 #define PATA_IMX_ATA_CTRL_FIFO_RST_B	(1<<7)
 #define PATA_IMX_ATA_CTRL_ATA_RST_B	(1<<6)
@@ -34,11 +36,19 @@
 #define PATA_IMX_DRIVE_DATA		0xA0
 #define PATA_IMX_DRIVE_CONTROL		0xD8
 
+struct pata_imx_dma {
+	int dma;
+	unsigned long dma_addr;
+	int burstsize;
+};
+
 struct pata_imx_priv {
 	struct clk *clk;
 	/* timings/interrupt/control regs */
 	u8 *host_regs;
 	u32 ata_ctl;
+	struct pata_imx_dma dma_params_rx;
+	struct pata_imx_dma dma_params_tx;
 };
 
 /*
@@ -219,10 +229,10 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	struct ata_port *ap;
 	struct pata_imx_priv *priv;
 	int irq = 0;
-	struct resource *io_res;
+	struct resource *res;
 
-	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (io_res == NULL)
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
 		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
@@ -253,8 +263,8 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
-	priv->host_regs = devm_ioremap(&pdev->dev, io_res->start,
-		resource_size(io_res));
+	priv->host_regs = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
 	if (!priv->host_regs) {
 		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
 		goto free_priv;
@@ -267,8 +277,18 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	pata_imx_setup_port(&ap->ioaddr);
 
 	ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
-		(unsigned long long)io_res->start + PATA_IMX_DRIVE_DATA,
-		(unsigned long long)io_res->start + PATA_IMX_DRIVE_CONTROL);
+		(unsigned long long)res->start + PATA_IMX_DRIVE_DATA,
+		(unsigned long long)res->start + PATA_IMX_DRIVE_CONTROL);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+	priv->dma_params_rx.dma = res->start;
+	priv->dma_params_rx.dma_addr = (unsigned long) priv->host_regs + PATA_IMX_FIFO_DATA;
+	dev_dbg(&pdev->dev, "dma %d rx 0x%08lx\n", priv->dma_params_rx.dma, priv->dma_params_rx.dma_addr);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+	priv->dma_params_tx.dma = res->start;
+	priv->dma_params_tx.dma_addr = (unsigned long) priv->host_regs + PATA_IMX_FIFO_DATA;
+	dev_dbg(&pdev->dev, "dma %d tx 0x%08lx\n", priv->dma_params_tx.dma, priv->dma_params_tx.dma_addr);
 
 	/* deassert resets */
 	__raw_writel(PATA_IMX_ATA_CTRL_FIFO_RST_B |
