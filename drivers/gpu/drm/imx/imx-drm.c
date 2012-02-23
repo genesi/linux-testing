@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
+#define DEBUG
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -197,13 +198,13 @@ static int ipu_fb_set_par(struct drm_crtc *crtc,
 	struct drm_device *drm = crtc->dev;
 	struct drm_framebuffer *fb = crtc->fb;
 	int ret;
-	struct ipu_di_signal_cfg sig_cfg;
+	struct ipu_di_signal_cfg sig_cfg = {0};
 	u32 out_pixel_fmt;
 	struct ipu_ch_param *cpmem = ipu_get_cpmem(ipu_crtc->ipu_ch);
 
 	ipu_fb_disable(ipu_crtc);
 
-	memset(cpmem, 0, sizeof(*cpmem));
+	ipu_cpmem_clear(cpmem);
 
 	memset(&sig_cfg, 0, sizeof(sig_cfg));
 	out_pixel_fmt = ipu_crtc->ipu_res->interface_pix_fmt;
@@ -339,7 +340,6 @@ static int ipu_ipufb_create(struct drm_fb_helper *helper,
 
 	info = framebuffer_alloc(0, drm->dev);
 	if (!info) {
-		printk(KERN_CRIT "%s framebuffer_alloc\n", __func__);
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
@@ -368,7 +368,6 @@ static int ipu_ipufb_create(struct drm_fb_helper *helper,
 	if (!info->screen_base) {
 		dev_err(drm->dev, "Unable to allocate framebuffer memory (%d)\n",
 				size);
-		printk(KERN_CRIT "%s screen_base\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -382,7 +381,6 @@ static int ipu_ipufb_create(struct drm_fb_helper *helper,
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
-		printk(KERN_CRIT "%s fb_alloc_cmap\n", __func__);
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
@@ -474,7 +472,7 @@ ipu_user_framebuffer_create(struct drm_device *drm,
 	ipu_fb = kzalloc(sizeof(*ipu_fb), GFP_KERNEL);
 	if (!ipu_fb)
 	{
-		printk(KERN_CRIT "%s kzalloc\n", __func__);
+		pr_crit("%s kzalloc\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -794,7 +792,7 @@ static int ipu_driver_load(struct drm_device *drm, unsigned long flags)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
         if (!priv)
 	{
-		printk(KERN_CRIT "%s kzalloc\n", __func__);
+		pr_crit("%s kzalloc\n", __func__);
                 return -ENOMEM;
 	}
         drm->dev_private = priv;

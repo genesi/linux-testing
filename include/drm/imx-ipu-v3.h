@@ -259,10 +259,9 @@ struct ipu_ch_param {
 };
 
 void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v);
-
 struct ipu_ch_param *ipu_get_cpmem(struct ipu_channel *channel);
-
 void ipu_ch_param_dump(struct ipu_ch_param *p);
+void ipu_cpmem_clear(struct ipu_ch_param *p);
 
 static inline void ipu_cpmem_set_buffer(struct ipu_ch_param *p, int bufnum,
 		dma_addr_t buf)

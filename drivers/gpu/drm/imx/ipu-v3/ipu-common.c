@@ -13,6 +13,7 @@
  * for more details.
  */
 
+#define DEBUG
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -70,6 +71,23 @@ struct ipu_ch_param *ipu_get_cpmem(struct ipu_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_get_cpmem);
 
+void ipu_cpmem_clear(struct ipu_ch_param *base)
+{
+	void *address = base;
+	u32 readback;
+	int i, w;
+
+	/* 2 words, 5 valid data */
+	for (w = 0; w < 2; w++) {
+		for (i = 0; i < 5; i++) {
+			writel(0x0, address);
+			readback = readl(address);
+			address += 4;
+		}
+		address += 12;
+	}
+}
+
 void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v)
 {
 	u32 bit = (wbs >> 8) % 160;
@@ -78,15 +96,27 @@ void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v)
 	u32 i = bit / 32;
 	u32 ofs = bit % 32;
 	u32 mask = (1 << size) - 1;
+	u32 field, readback, *address;
 
-	pr_debug("%s %d %d %d\n", __func__, word, bit , size);
+	address = &base->word[word].data[i];
 
-	base->word[word].data[i] &= ~(mask << ofs);
-	base->word[word].data[i] |= v << ofs;
+	field = readl(address) & ~(mask << ofs);
+	field |= v << ofs;
+	writel(field, address);
+	readback = readl(address);
+
+	pr_crit("%s (0x%x) wrote [%d:%d]0x%08x readback 0x%08x\n",
+		__func__, ((u32)address & 0xfff), bit, bit+size, field, readback);
 
 	if ((bit + size - 1) / 32 > i) {
-		base->word[word].data[i + 1] &= ~(v >> (mask ? (32 - ofs) : 0));
-		base->word[word].data[i + 1] |= v >> (ofs ? (32 - ofs) : 0);
+		address = &base->word[word].data[i+1];
+
+		field = readl(address) & ~(v >> (mask ? (32 - ofs) : 0));
+		field |= v >> (ofs ? (32 - ofs) : 0);
+		writel(field, address);
+		readback = readl(address);
+		pr_crit("%s (0x%x) wrote [%d:%d]0x%08x readback 0x%08x (field overlaps 32-bit boundary)\n",
+			__func__, bit, bit+size, ((u32)address & 0xfff), field, readback);
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_ch_param_set_field);
@@ -99,20 +129,21 @@ u32 ipu_ch_param_read_field(struct ipu_ch_param *base, u32 wbs)
 	u32 i = bit / 32;
 	u32 ofs = bit % 32;
 	u32 mask = (1 << size) - 1;
-	u32 val = 0;
+	u32 field, *address, tmp;
 
-	pr_debug("%s %d %d %d\n", __func__, word, bit , size);
+	address = &base->word[word].data[i];
 
-	val = (base->word[word].data[i] >> ofs) & mask;
+	field = (readl(address) >> ofs) & mask;
 
 	if ((bit + size - 1) / 32 > i) {
-		u32 tmp;
-		tmp = base->word[word].data[i + 1];
-		tmp &= mask >> (ofs ? (32 - ofs) : 0);
-		val |= tmp << (ofs ? (32 - ofs) : 0);
+		address = &base->word[word].data[i+1];
+		tmp = readl(address) & (mask >> (ofs ? (32 - ofs) : 0));
+		field |= tmp << (ofs ? (32 - ofs) : 0);
 	}
 
-	return val;
+	pr_crit("%s read [%d:%d]0x%08x\n", __func__, bit, bit+size, field);
+
+	return field;
 }
 EXPORT_SYMBOL_GPL(ipu_ch_param_read_field);
 
