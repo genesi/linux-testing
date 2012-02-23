@@ -156,8 +156,16 @@ EXPORT_SYMBOL(mx50_revision);
  * The MIPI HSC unit has been removed from the i.MX51 Reference Manual by
  * the Freescale marketing division. However this did not remove the
  * hardware from the chip which still needs to be configured for proper
- * IPU support.
+ * IPU support. Some details are in the IMX51RMAD document (Table 42-7)
  */
+#define HSC_MCD		0x000
+#define HSC_MCCMC	0x0d8
+#define HSC_MXT_CONF	0x800
+
+#define MCD_BYPASS	0x00000f00
+#define MCCMC_BYPASS	0x0000000c
+#define MXT_CONF_BYPASS	0xF003008B
+
 static void __init ipu_mipi_setup(void)
 {
 	struct clk *hsc_clk;
@@ -172,12 +180,9 @@ static void __init ipu_mipi_setup(void)
 	}
 	clk_enable(hsc_clk);
 
-	/* setup MIPI module to legacy mode */
-	__raw_writel(0xf00, hsc_addr);
-
-	/* CSI mode: reserved; DI control mode: legacy (from Freescale BSP) */
-	__raw_writel(__raw_readl(hsc_addr + 0x800) | 0x30ff,
-		hsc_addr + 0x800);
+	__raw_writel(MCD_BYPASS, hsc_addr + HSC_MCD);
+	__raw_writel(MCCMC_BYPASS, hsc_addr + HSC_MCCMC);
+	__raw_writel(MXT_CONF_BYPASS, hsc_addr + HSC_MXT_CONF);
 
 	clk_disable(hsc_clk);
 	clk_put(hsc_clk);
