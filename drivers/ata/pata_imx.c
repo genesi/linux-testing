@@ -13,6 +13,7 @@
  * - dmaengine support
  */
 
+#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -44,12 +45,26 @@ struct pata_imx_dma {
 
 struct pata_imx_priv {
 	struct clk *clk;
-	/* timings/interrupt/control regs */
-	u8 *host_regs;
-	u32 ata_ctl;
+
+	u8 __iomem *host_regs;
+	/* save area for suspend/resume */
+	u32 ata_control;
+
 	struct pata_imx_dma dma_params_rx;
 	struct pata_imx_dma dma_params_tx;
+
 };
+
+static void pata_imx_write(struct pata_imx_priv *priv, u32 val, u32 offset)
+{
+	__raw_writel(val, priv->host_regs + offset);
+}
+
+static u32 pata_imx_read(struct pata_imx_priv *priv, u32 offset)
+{
+	return __raw_readl(priv->host_regs + offset);
+}
+
 
 /*
  * This structure contains the timing parameters for
@@ -120,17 +135,19 @@ struct pata_imx_time_regs {
 	u8 time_dvs, time_cvh, time_ss, time_cyc;
 };
 
-static void commit_timing_config(struct pata_imx_time_regs *tp, struct ata_host *host)
+static void commit_timing_config(struct pata_imx_time_regs *tr, struct ata_host *host)
 {
-	u32 *lp = (u32 *) tp;
+	u32 *p = (u32 *) tr;
 	struct pata_imx_priv *priv = host->private_data;
-	u32 *ctlp = (u32 *) priv->host_regs;
 	int i;
 
-	for (i = 0; i < (sizeof(struct pata_imx_time_regs)/sizeof(int)); i++) {
-		__raw_writel(*lp, ctlp);
-		lp++;
-		ctlp++;
+	for (i = 0; i < sizeof(struct pata_imx_time_regs); i+=sizeof(u32)) {
+		/*
+		 * timing reg is at 0x00 so we can use the index for the write
+		 * it might be far easier to use __raw_writesl here, no?
+		 */
+		pata_imx_write(priv, *p, i);
+		p++;
 	}
 }
 
@@ -179,17 +196,23 @@ static int set_ata_bus_timing(u8 xfer_mode, struct platform_device *pdev)
 	return 0;
 }
 
-static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
+static void pata_imx_set_iordy(struct pata_imx_priv *priv, struct ata_device *adev)
 {
-	struct pata_imx_priv *priv = ap->host->private_data;
 	u32 val;
 
-	val = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+	val = pata_imx_read(priv, PATA_IMX_ATA_CONTROL);
 	if (ata_pio_need_iordy(adev))
 		val |= PATA_IMX_ATA_CTRL_IORDY_EN;
 	else
 		val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
-	__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
+	pata_imx_write(priv, val, PATA_IMX_ATA_CONTROL);
+}
+
+static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
+{
+	struct pata_imx_priv *priv = ap->host->private_data;
+
+	pata_imx_set_iordy(priv, adev);
 
 	set_ata_bus_timing(adev->pio_mode, to_platform_device(ap->dev));
 }
@@ -283,21 +306,21 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
 	priv->dma_params_rx.dma = res->start;
 	priv->dma_params_rx.dma_addr = (unsigned long) priv->host_regs + PATA_IMX_FIFO_DATA;
-	dev_dbg(&pdev->dev, "dma %d rx 0x%08lx\n", priv->dma_params_rx.dma, priv->dma_params_rx.dma_addr);
+	dev_dbg(&pdev->dev, "dma %d rx 0x%08lx\n", priv->dma_params_rx.dma,
+						priv->dma_params_rx.dma_addr);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
 	priv->dma_params_tx.dma = res->start;
 	priv->dma_params_tx.dma_addr = (unsigned long) priv->host_regs + PATA_IMX_FIFO_DATA;
-	dev_dbg(&pdev->dev, "dma %d tx 0x%08lx\n", priv->dma_params_tx.dma, priv->dma_params_tx.dma_addr);
+	dev_dbg(&pdev->dev, "dma %d tx 0x%08lx\n", priv->dma_params_tx.dma,
+						priv->dma_params_tx.dma_addr);
 
 	/* deassert resets */
-	__raw_writel(PATA_IMX_ATA_CTRL_FIFO_RST_B |
-			PATA_IMX_ATA_CTRL_ATA_RST_B,
-			priv->host_regs + PATA_IMX_ATA_CONTROL);
+	pata_imx_write(priv, PATA_IMX_ATA_CTRL_FIFO_RST_B | PATA_IMX_ATA_CTRL_ATA_RST_B,
+			PATA_IMX_ATA_CONTROL);
 
 	/* enable interrupts */
-	__raw_writel(PATA_IMX_ATA_INTR_ATA_INTRQ2,
-			priv->host_regs + PATA_IMX_ATA_INT_EN);
+	pata_imx_write(priv, PATA_IMX_ATA_INTR_ATA_INTRQ2, PATA_IMX_ATA_INT_EN);
 
 	/* activate */
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0,
@@ -316,7 +339,7 @@ static int __devexit pata_imx_remove(struct platform_device *pdev)
 
 	ata_host_detach(host);
 
-	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
+	pata_imx_write(priv, 0, PATA_IMX_ATA_INT_EN);
 
 	clk_disable(priv->clk);
 	clk_put(priv->clk);
@@ -333,9 +356,8 @@ static int pata_imx_suspend(struct device *dev)
 
 	ret = ata_host_suspend(host, PMSG_SUSPEND);
 	if (!ret) {
-		__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
-		priv->ata_ctl =
-			__raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+		pata_imx_write(priv, 0, PATA_IMX_ATA_INT_EN);
+		priv->ata_control = pata_imx_read(priv, PATA_IMX_ATA_CONTROL);
 		clk_disable(priv->clk);
 	}
 
@@ -349,10 +371,8 @@ static int pata_imx_resume(struct device *dev)
 
 	clk_enable(priv->clk);
 
-	__raw_writel(priv->ata_ctl, priv->host_regs + PATA_IMX_ATA_CONTROL);
-
-	__raw_writel(PATA_IMX_ATA_INTR_ATA_INTRQ2,
-			priv->host_regs + PATA_IMX_ATA_INT_EN);
+	pata_imx_write(priv, priv->ata_control, PATA_IMX_ATA_CONTROL);
+	pata_imx_write(priv, PATA_IMX_ATA_INTR_ATA_INTRQ2, PATA_IMX_ATA_INT_EN);
 
 	ata_host_resume(host);
 
