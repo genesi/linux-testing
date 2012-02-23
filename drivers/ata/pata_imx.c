@@ -227,7 +227,7 @@ static struct ata_port_operations pata_imx_port_ops = {
 #ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
 	.qc_issue			= ata_sff_qc_issue_ledtrigger,
 #endif
-	.sff_data_xfer  		= ata_sff_data_xfer_noirq,
+	.sff_data_xfer  		= ata_sff_data_xfer,
 	.cable_detect			= ata_cable_unknown,
 	.set_piomode			= pata_imx_set_piomode,
 };
