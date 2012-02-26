@@ -122,6 +122,13 @@ typedef enum {
 struct ipu_channel;
 
 /*
+ * Refcounting (will enable/disable clock)
+ */
+void ipu_get(struct ipu_soc *ipu);
+void ipu_put(struct ipu_soc *ipu);
+
+
+/*
  * IPU Image DMA Controller (idmac) functions
  */
 struct ipu_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned channel);
