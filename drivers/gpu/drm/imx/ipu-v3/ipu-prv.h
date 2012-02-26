@@ -157,6 +157,7 @@ struct ipu_channel {
 	bool busy;
 
 	struct ipu_soc *ipu;
+	struct ipu_ch_param ch_param;
 };
 
 struct ipu_dc_priv;
@@ -171,7 +172,7 @@ struct ipu_soc {
 	void __iomem		*idmac_reg;
 	struct ipu_ch_param	*cpmem_base;
 
-	int			usecount;
+	atomic_t		usecount;
 
 	struct clk		*clk;
 	struct ipu_channel	channel[64];

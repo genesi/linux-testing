@@ -490,9 +490,7 @@ void ipu_get(struct ipu_soc *ipu)
 {
 	mutex_lock(&ipu->channel_lock);
 
-	ipu->usecount++;
-
-	if (ipu->usecount == 1)
+	if (atomic_inc_return(&ipu->usecount) == 1)
 		clk_enable(ipu->clk);
 
 	mutex_unlock(&ipu->channel_lock);
@@ -503,12 +501,10 @@ void ipu_put(struct ipu_soc *ipu)
 {
 	mutex_lock(&ipu->channel_lock);
 
-	ipu->usecount--;
-
-	if (ipu->usecount == 0)
+	if (atomic_dec_return(&ipu->usecount) == 0)
 		clk_disable(ipu->clk);
 
-	WARN_ON(ipu->usecount < 0);
+	WARN_ON(atomic_read(&ipu->usecount) < 0);
 
 	mutex_unlock(&ipu->channel_lock);
 }
@@ -781,6 +777,7 @@ static int __devexit ipu_remove(struct platform_device *pdev)
 {
 	struct ipu_soc *ipu = platform_get_drvdata(pdev);
 	struct resource *res;
+	int ipu_usecount;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -788,8 +785,10 @@ static int __devexit ipu_remove(struct platform_device *pdev)
 	ipu_submodules_exit(ipu);
 	ipu_irq_exit(ipu);
 
-	if (ipu->usecount != 0) {
-		dev_err(ipu->dev, "unbalanced use count: %d\n", ipu->usecount);
+	ipu_usecount = atomic_read(&ipu->usecount);
+
+	if (!ipu_usecount) {
+		dev_err(ipu->dev, "unbalanced use count: %d\n", ipu_usecount);
 		clk_disable(ipu->clk);
 	}
 
