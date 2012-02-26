@@ -593,6 +593,8 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 
 static void ipu_put_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(drm->dev->parent);
+
 	if (!IS_ERR(ipu_crtc->pixclk))
 		clk_put(ipu_crtc->pixclk);
 	if (!IS_ERR_OR_NULL(ipu_crtc->ipu_ch))
@@ -603,6 +605,8 @@ static void ipu_put_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 		ipu_dp_put(ipu_crtc->dp);
 	if (!IS_ERR_OR_NULL(ipu_crtc->di))
 		ipu_di_put(ipu_crtc->di);
+
+	ipu_put(ipu);
 }
 
 static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
@@ -652,6 +656,8 @@ static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 		ret = PTR_ERR(ipu_crtc->di);
 		goto err_out;
 	}
+
+	ipu_get(ipu);
 
 	return 0;
 err_out:
