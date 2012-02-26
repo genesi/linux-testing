@@ -241,6 +241,8 @@ static int pixel_clk_enable(struct clk *clk)
 	disp_gen |= clk->id ? IPU_DI1_COUNTER_RELEASE : IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
 
+	pr_crit("pixel clock enabled (IPU DI%d counter release)\n", clk->id);
+
 	return 0;
 }
 
@@ -250,6 +252,8 @@ static void pixel_clk_disable(struct clk *clk)
 	u32 disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
 	disp_gen &= clk->id ? ~IPU_DI1_COUNTER_RELEASE : ~IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
+
+	pr_crit("pixel clock disabled (IPU DI%d counter stopped)\n", clk->id);
 }
 
 static void ipu_di_data_wave_config(struct ipu_di *di,
