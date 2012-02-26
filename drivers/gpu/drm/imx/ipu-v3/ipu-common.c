@@ -703,7 +703,7 @@ static int __devinit ipu_probe(struct platform_device *pdev)
 	if (!res || irq_sync < 0 || irq_err < 0)
 		return -ENODEV;
 
-	ipu_base = res->start;
+	ipu_base = res->start + 0x1e000000; // this should be better done
 
 	ipu = devm_kzalloc(&pdev->dev, sizeof(*ipu), GFP_KERNEL);
 	if (!ipu)
