@@ -148,9 +148,16 @@ static inline void ipu_di_write(struct ipu_di *di, u32 value, unsigned offset)
 static unsigned long pixel_clk_get_rate(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
+	struct ipu_soc *ipu = di->ipu;
 	unsigned long inrate = clk_get_rate(clk->parent);
 	unsigned long outrate = 0;
-	u32 div = ipu_di_read(di, DI_BS_CLKGEN0);
+	u32 div;
+
+	ipu_get(ipu);
+
+	div = ipu_di_read(di, DI_BS_CLKGEN0);
+
+	ipu_put(ipu);
 
 	if (div == 0) {
 		goto done;
@@ -196,16 +203,21 @@ static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
+	struct ipu_soc *ipu = di->ipu;
 	unsigned long inrate = clk_get_rate(clk_get_parent(clk));
 	int div;
 
 	div = pixel_clk_calc_div(inrate, rate);
+
+	ipu_get(ipu);
 
 	ipu_di_write(di, div, DI_BS_CLKGEN0);
 
 	/* Setup pixel clock timing */
 	/* Down time is half of period */
 	ipu_di_write(di, (div >> 4)<<16, DI_BS_CLKGEN1);
+
+	ipu_put(ipu);
 
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate << 4)/div);
 
@@ -215,7 +227,12 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	u32 di_gen = ipu_di_read(di, DI_GENERAL);
+	struct ipu_soc *ipu = di->ipu;
+	u32 di_gen;
+
+	ipu_get(ipu);
+
+	di_gen = ipu_di_read(di, DI_GENERAL);
 	if (parent == di->ipu_clk) {
 		dev_dbg(ipu_dev, "%s using internal clock\n", __func__);
 		di->external_clk = false;
@@ -231,15 +248,24 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 		return -EINVAL;
 	}
 	ipu_di_write(di, di_gen, DI_GENERAL);
+
+	ipu_put(ipu);
 	return 0;
 }
 
 static int pixel_clk_enable(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	u32 disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
+	struct ipu_soc *ipu = di->ipu;
+	u32 disp_gen;
+
+	ipu_get(ipu);
+
+	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
 	disp_gen |= clk->id ? IPU_DI1_COUNTER_RELEASE : IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
+
+	ipu_put(ipu);
 
 	pr_crit("pixel clock enabled (IPU DI%d counter release)\n", clk->id);
 
@@ -249,9 +275,16 @@ static int pixel_clk_enable(struct clk *clk)
 static void pixel_clk_disable(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	u32 disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
+	struct ipu_soc *ipu = di->ipu;
+	u32 disp_gen;
+
+	ipu_get(ipu);
+
+	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
 	disp_gen &= clk->id ? ~IPU_DI1_COUNTER_RELEASE : ~IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
+
+	ipu_put(ipu);
 
 	pr_crit("pixel clock disabled (IPU DI%d counter stopped)\n", clk->id);
 }
