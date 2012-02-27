@@ -787,7 +787,7 @@ static int __devexit ipu_remove(struct platform_device *pdev)
 
 	ipu_usecount = atomic_read(&ipu->usecount);
 
-	if (!ipu_usecount) {
+	if (ipu_usecount) {
 		dev_err(ipu->dev, "unbalanced use count: %d\n", ipu_usecount);
 		clk_disable(ipu->clk);
 	}
