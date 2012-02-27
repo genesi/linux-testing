@@ -241,7 +241,7 @@ static struct siihdmi_platform_data mx51_efikamx_siihdmi_data = {
 	.reset = mx51_efikamx_display_reset,
 	.drm_name = "imx-drm.0",
 	.encon_id = 0,
-	.max_pixclock = 133000000, /* should be max of ipu_clk and should also be an crtc config item not encoder */
+	.max_pixclock = 133000, /* should be max of ipu_clk and should also be an crtc config item not encoder */
 };
 
 
