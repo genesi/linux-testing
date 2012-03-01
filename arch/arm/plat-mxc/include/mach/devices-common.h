@@ -280,6 +280,8 @@ struct imx_pata_imx_data {
 	resource_size_t iobase;
 	resource_size_t iosize;
 	resource_size_t irq;
+	resource_size_t dmatx;
+	resource_size_t dmarx;
 };
 struct platform_device *__init imx_add_pata_imx(
 		const struct imx_pata_imx_data *data);

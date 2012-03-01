@@ -11,6 +11,8 @@
 		.iobase = soc ## _ATA_BASE_ADDR,			\
 		.iosize = _size,					\
 		.irq = soc ## _INT_ATA,					\
+		.dmatx = soc ## _DMA_REQ_ATA_TX,           \
+		.dmarx = soc ## _DMA_REQ_ATA_RX,           \
 	}
 
 #ifdef CONFIG_SOC_IMX27
@@ -38,6 +40,13 @@ const struct imx_pata_imx_data imx53_pata_imx_data __initconst =
 	imx_pata_imx_data_entry_single(MX53, SZ_16K);
 #endif /* ifdef CONFIG_SOC_IMX53 */
 
+#define DMARES(_name) {				\
+	.name = #_name,				\
+	.start = data->dma ## _name,		\
+	.end = data->dma ## _name,		\
+	.flags = IORESOURCE_DMA,		\
+}
+
 struct platform_device *__init imx_add_pata_imx(
 		const struct imx_pata_imx_data *data)
 {
@@ -52,6 +61,8 @@ struct platform_device *__init imx_add_pata_imx(
 			.end = data->irq,
 			.flags = IORESOURCE_IRQ,
 		},
+		DMARES(tx),
+		DMARES(rx),
 	};
 	return imx_add_platform_device("pata_imx", -1,
 			res, ARRAY_SIZE(res), NULL, 0);
