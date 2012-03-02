@@ -145,19 +145,42 @@ static inline void ipu_di_write(struct ipu_di *di, u32 value, unsigned offset)
 	writel(value, di->base + offset);
 }
 
+/*
+ * clkdev pixel clock abstraction
+ *
+ * the pixel clock is the magic that drives the DI to display; it enables and
+ * disables the DIn_COUNTER and sets the DI_CLK_EXT bits (but not VSYNC_EXT) and
+ * the divider from the parent DI clock. The DI parent clock is global on the SoC
+ * clockmux so it's defined elsewhere, but that is derived from IPU HSC, PLL3, TVE,
+ * LDB clocks. Since the IPU HSC clock is fairly inaccurate the pixel clock divider
+ * is fractional. All of this functionality (except get_rate currently) is predicated
+ * on the caller of any clk API functions to hold the IPU with ipu_get since the
+ * IPU clock NEEDS to be enabled to access counters, ext bit and divider. We cannot
+ * ipu_get inside the clock abstraction because the clock API holds a mutex for
+ * most of these functions.
+ */
+
 static unsigned long pixel_clk_get_rate(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	struct ipu_soc *ipu = di->ipu;
 	unsigned long inrate = clk_get_rate(clk->parent);
 	unsigned long outrate = 0;
 	u32 div;
 
-	ipu_get(ipu);
+	/*
+	 * rather than duplicate the clock enable/disable and refcounting
+	 * logic here and because we do not want to disable the clock or
+	 * leave it enabled, we leave it to ipu_get/put; if get_rate ever
+	 * holds a clock mutex this will cause the lock debugger to go
+	 * crazy at us, but we need to read the pixel clock rate elsewhere
+	 * (for instance, debugfs clock tree) and for now, no clock mutex
+	 * is held.
+	 */
+	ipu_get(di->ipu);
 
 	div = ipu_di_read(di, DI_BS_CLKGEN0);
 
-	ipu_put(ipu);
+	ipu_put(di->ipu);
 
 	if (div == 0) {
 		goto done;
@@ -209,15 +232,11 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	div = pixel_clk_calc_div(inrate, rate);
 
-	ipu_get(ipu);
-
 	ipu_di_write(di, div, DI_BS_CLKGEN0);
 
 	/* Setup pixel clock timing */
 	/* Down time is half of period */
 	ipu_di_write(di, (div >> 4)<<16, DI_BS_CLKGEN1);
-
-	ipu_put(ipu);
 
 	dev_info(ipu_dev, "%s: inrate: %ld desired: %ld div: %d actual: %ld\n", __func__, inrate, rate, div, (inrate << 4)/div);
 
@@ -229,8 +248,6 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
 	struct ipu_soc *ipu = di->ipu;
 	u32 di_gen;
-
-	ipu_get(ipu);
 
 	di_gen = ipu_di_read(di, DI_GENERAL);
 	if (parent == di->ipu_clk) {
@@ -249,7 +266,6 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 	}
 	ipu_di_write(di, di_gen, DI_GENERAL);
 
-	ipu_put(ipu);
 	return 0;
 }
 
@@ -259,13 +275,9 @@ static int pixel_clk_enable(struct clk *clk)
 	struct ipu_soc *ipu = di->ipu;
 	u32 disp_gen;
 
-	ipu_get(ipu);
-
 	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
 	disp_gen |= clk->id ? IPU_DI1_COUNTER_RELEASE : IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
-
-	ipu_put(ipu);
 
 	pr_crit("pixel clock enabled (IPU DI%d counter release)\n", clk->id);
 
@@ -278,13 +290,9 @@ static void pixel_clk_disable(struct clk *clk)
 	struct ipu_soc *ipu = di->ipu;
 	u32 disp_gen;
 
-	ipu_get(ipu);
-
 	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
 	disp_gen &= clk->id ? ~IPU_DI1_COUNTER_RELEASE : ~IPU_DI0_COUNTER_RELEASE;
 	ipu_cm_write(di->ipu, disp_gen, IPU_DISP_GEN);
-
-	ipu_put(ipu);
 
 	pr_crit("pixel clock disabled (IPU DI%d counter stopped)\n", clk->id);
 }
