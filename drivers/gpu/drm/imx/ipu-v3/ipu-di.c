@@ -226,7 +226,6 @@ static unsigned long pixel_clk_round_rate(struct clk *clk, unsigned long rate)
 static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	struct ipu_soc *ipu = di->ipu;
 	unsigned long inrate = clk_get_rate(clk_get_parent(clk));
 	int div;
 
@@ -246,7 +245,6 @@ static int pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	struct ipu_soc *ipu = di->ipu;
 	u32 di_gen;
 
 	di_gen = ipu_di_read(di, DI_GENERAL);
@@ -272,7 +270,6 @@ static int pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 static int pixel_clk_enable(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	struct ipu_soc *ipu = di->ipu;
 	u32 disp_gen;
 
 	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
@@ -287,7 +284,6 @@ static int pixel_clk_enable(struct clk *clk)
 static void pixel_clk_disable(struct clk *clk)
 {
 	struct ipu_di *di = container_of(clk, struct ipu_di, pixel_clk);
-	struct ipu_soc *ipu = di->ipu;
 	u32 disp_gen;
 
 	disp_gen = ipu_cm_read(di->ipu, IPU_DISP_GEN);
