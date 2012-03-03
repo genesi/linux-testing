@@ -65,7 +65,7 @@ struct ipu_crtc {
 	struct drm_crtc		base;
 	int			pipe;
 	struct ipu_resource	*ipu_res;
-	struct ipu_channel	*ipu_ch;
+	struct ipu_channel	*ch;
 	struct ipu_dc		*dc;
 	struct ipu_dp		*dp;
 	struct dmfc_channel	*dmfc;
@@ -167,7 +167,7 @@ static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 
 	ipu_di_enable(ipu_crtc->di);
 	ipu_dmfc_enable_channel(ipu_crtc->dmfc);
-	ipu_idmac_enable_channel(ipu_crtc->ipu_ch);
+	ipu_idmac_enable_channel(ipu_crtc->ch);
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	if (ipu_crtc->dp)
 		ipu_dp_enable_channel(ipu_crtc->dp);
@@ -183,7 +183,7 @@ static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 	if (ipu_crtc->dp)
 		ipu_dp_disable_channel(ipu_crtc->dp);
 	ipu_dc_disable_channel(ipu_crtc->dc);
-	ipu_idmac_disable_channel(ipu_crtc->ipu_ch);
+	ipu_idmac_disable_channel(ipu_crtc->ch);
 	ipu_dmfc_disable_channel(ipu_crtc->dmfc);
 	ipu_di_disable(ipu_crtc->di);
 
@@ -200,11 +200,8 @@ static int ipu_fb_set_par(struct drm_crtc *crtc,
 	int ret;
 	struct ipu_di_signal_cfg sig_cfg = {0};
 	u32 out_pixel_fmt;
-	struct ipu_ch_param *cpmem = ipu_get_cpmem(ipu_crtc->ipu_ch);
 
 	ipu_fb_disable(ipu_crtc);
-
-	ipu_cpmem_clear(cpmem);
 
 	memset(&sig_cfg, 0, sizeof(sig_cfg));
 	out_pixel_fmt = ipu_crtc->ipu_res->interface_pix_fmt;
@@ -255,11 +252,11 @@ static int ipu_fb_set_par(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ipu_cpmem_set_resolution(cpmem, mode->hdisplay, mode->vdisplay);
-	ipu_cpmem_set_stride(cpmem, fb->pitch);
-	ipu_cpmem_set_buffer(cpmem, 0, phys);
-	ipu_cpmem_set_format_rgb(cpmem, &def_rgb_32);
-	ipu_cpmem_set_high_priority(cpmem);
+	ipu_channel_set_resolution(ipu_crtc->ch, mode->hdisplay, mode->vdisplay);
+	ipu_channel_set_stride(ipu_crtc->ch, fb->pitch);
+	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys);
+	ipu_channel_set_format_rgb(ipu_crtc->ch, &def_rgb_32);
+	ipu_channel_set_high_priority(ipu_crtc->ch);
 
 	ret = ipu_dmfc_init_channel(ipu_crtc->dmfc, mode->hdisplay);
 	if (ret) {
@@ -541,9 +538,8 @@ static int ipu_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	phys += x * 4; /* FIXME */
 	phys += y * fb->pitch;
 
-	ipu_cpmem_set_stride(ipu_get_cpmem(ipu_crtc->ipu_ch), fb->pitch);
-	ipu_cpmem_set_buffer(ipu_get_cpmem(ipu_crtc->ipu_ch),
-			  0, phys);
+	ipu_channel_set_stride(ipu_crtc->ch, fb->pitch);
+	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys);
 	return 0;
 }
 
@@ -597,16 +593,14 @@ static void ipu_put_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 
 	if (!IS_ERR(ipu_crtc->pixclk))
 		clk_put(ipu_crtc->pixclk);
-	if (!IS_ERR_OR_NULL(ipu_crtc->ipu_ch))
-		ipu_idmac_put(ipu_crtc->ipu_ch);
+	if (!IS_ERR_OR_NULL(ipu_crtc->ch))
+		ipu_idmac_put(ipu_crtc->ch);
 	if (!IS_ERR_OR_NULL(ipu_crtc->dmfc))
 		ipu_dmfc_put(ipu_crtc->dmfc);
 	if (!IS_ERR_OR_NULL(ipu_crtc->dp))
 		ipu_dp_put(ipu_crtc->dp);
 	if (!IS_ERR_OR_NULL(ipu_crtc->di))
 		ipu_di_put(ipu_crtc->di);
-
-	ipu_put(ipu);
 }
 
 static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
@@ -625,9 +619,9 @@ static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 		goto err_out;
 	}
 
-	ipu_crtc->ipu_ch = ipu_idmac_get(ipu, res->ipu_channel_bg);
-	if (IS_ERR_OR_NULL(ipu_crtc->ipu_ch)) {
-		ret = PTR_ERR(ipu_crtc->ipu_ch);
+	ipu_crtc->ch = ipu_idmac_get(ipu, res->ipu_channel_bg);
+	if (IS_ERR_OR_NULL(ipu_crtc->ch)) {
+		ret = PTR_ERR(ipu_crtc->ch);
 		goto err_out;
 	}
 
@@ -646,7 +640,7 @@ static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 	if (res->dp_channel >= 0) {
 		ipu_crtc->dp = ipu_dp_get(ipu, res->dp_channel);
 		if (IS_ERR(ipu_crtc->dp)) {
-			ret = PTR_ERR(ipu_crtc->ipu_ch);
+			ret = PTR_ERR(ipu_crtc->ch);
 			goto err_out;
 		}
 	}
@@ -656,8 +650,6 @@ static int ipu_get_resources(struct drm_device *drm, struct ipu_crtc *ipu_crtc)
 		ret = PTR_ERR(ipu_crtc->di);
 		goto err_out;
 	}
-
-	ipu_get(ipu);
 
 	return 0;
 err_out:

@@ -63,32 +63,137 @@ void ipu_srm_dp_sync_update(struct ipu_soc *ipu)
 }
 EXPORT_SYMBOL_GPL(ipu_srm_dp_sync_update);
 
-struct ipu_ch_param *ipu_get_cpmem(struct ipu_channel *channel)
+
+
+#define IPU_CPMEM_WORD(word, ofs, size) ((((word) * 160 + (ofs)) << 8) | (size))
+
+#define IPU_FIELD_UBO		IPU_CPMEM_WORD(0, 46, 22)
+#define IPU_FIELD_VBO		IPU_CPMEM_WORD(0, 68, 22)
+#define IPU_FIELD_IOX		IPU_CPMEM_WORD(0, 90, 4)
+#define IPU_FIELD_RDRW		IPU_CPMEM_WORD(0, 94, 1)
+#define IPU_FIELD_SO		IPU_CPMEM_WORD(0, 113, 1)
+#define IPU_FIELD_SLY		IPU_CPMEM_WORD(1, 102, 14)
+#define IPU_FIELD_SLUV		IPU_CPMEM_WORD(1, 128, 14)
+
+#define IPU_FIELD_XV		IPU_CPMEM_WORD(0, 0, 10)
+#define IPU_FIELD_YV		IPU_CPMEM_WORD(0, 10, 9)
+#define IPU_FIELD_XB		IPU_CPMEM_WORD(0, 19, 13)
+#define IPU_FIELD_YB		IPU_CPMEM_WORD(0, 32, 12)
+#define IPU_FIELD_NSB_B		IPU_CPMEM_WORD(0, 44, 1)
+#define IPU_FIELD_CF		IPU_CPMEM_WORD(0, 45, 1)
+#define IPU_FIELD_SX		IPU_CPMEM_WORD(0, 46, 12)
+#define IPU_FIELD_SY		IPU_CPMEM_WORD(0, 58, 11)
+#define IPU_FIELD_NS		IPU_CPMEM_WORD(0, 69, 10)
+#define IPU_FIELD_SDX		IPU_CPMEM_WORD(0, 79, 7)
+#define IPU_FIELD_SM		IPU_CPMEM_WORD(0, 86, 10)
+#define IPU_FIELD_SCC		IPU_CPMEM_WORD(0, 96, 1)
+#define IPU_FIELD_SCE		IPU_CPMEM_WORD(0, 97, 1)
+#define IPU_FIELD_SDY		IPU_CPMEM_WORD(0, 98, 7)
+#define IPU_FIELD_SDRX		IPU_CPMEM_WORD(0, 105, 1)
+#define IPU_FIELD_SDRY		IPU_CPMEM_WORD(0, 106, 1)
+#define IPU_FIELD_BPP		IPU_CPMEM_WORD(0, 107, 3)
+#define IPU_FIELD_DEC_SEL	IPU_CPMEM_WORD(0, 110, 2)
+#define IPU_FIELD_DIM		IPU_CPMEM_WORD(0, 112, 1)
+#define IPU_FIELD_BNDM		IPU_CPMEM_WORD(0, 114, 3)
+#define IPU_FIELD_BM		IPU_CPMEM_WORD(0, 117, 2)
+#define IPU_FIELD_ROT		IPU_CPMEM_WORD(0, 119, 1)
+#define IPU_FIELD_HF		IPU_CPMEM_WORD(0, 120, 1)
+#define IPU_FIELD_VF		IPU_CPMEM_WORD(0, 121, 1)
+#define IPU_FIELD_THE		IPU_CPMEM_WORD(0, 122, 1)
+#define IPU_FIELD_CAP		IPU_CPMEM_WORD(0, 123, 1)
+#define IPU_FIELD_CAE		IPU_CPMEM_WORD(0, 124, 1)
+#define IPU_FIELD_FW		IPU_CPMEM_WORD(0, 125, 13)
+#define IPU_FIELD_FH		IPU_CPMEM_WORD(0, 138, 12)
+#define IPU_FIELD_EBA0		IPU_CPMEM_WORD(1, 0, 29)
+#define IPU_FIELD_EBA1		IPU_CPMEM_WORD(1, 29, 29)
+#define IPU_FIELD_ILO		IPU_CPMEM_WORD(1, 58, 20)
+#define IPU_FIELD_NPB		IPU_CPMEM_WORD(1, 78, 7)
+#define IPU_FIELD_PFS		IPU_CPMEM_WORD(1, 85, 4)
+#define IPU_FIELD_ALU		IPU_CPMEM_WORD(1, 89, 1)
+#define IPU_FIELD_ALBM		IPU_CPMEM_WORD(1, 90, 3)
+#define IPU_FIELD_ID		IPU_CPMEM_WORD(1, 93, 2)
+#define IPU_FIELD_TH		IPU_CPMEM_WORD(1, 95, 7)
+#define IPU_FIELD_SL		IPU_CPMEM_WORD(1, 102, 14)
+#define IPU_FIELD_WID0		IPU_CPMEM_WORD(1, 116, 3)
+#define IPU_FIELD_WID1		IPU_CPMEM_WORD(1, 119, 3)
+#define IPU_FIELD_WID2		IPU_CPMEM_WORD(1, 122, 3)
+#define IPU_FIELD_WID3		IPU_CPMEM_WORD(1, 125, 3)
+#define IPU_FIELD_OFS0		IPU_CPMEM_WORD(1, 128, 5)
+#define IPU_FIELD_OFS1		IPU_CPMEM_WORD(1, 133, 5)
+#define IPU_FIELD_OFS2		IPU_CPMEM_WORD(1, 138, 5)
+#define IPU_FIELD_OFS3		IPU_CPMEM_WORD(1, 143, 5)
+#define IPU_FIELD_SXYS		IPU_CPMEM_WORD(1, 148, 1)
+#define IPU_FIELD_CRE		IPU_CPMEM_WORD(1, 149, 1)
+#define IPU_FIELD_DEC_SEL2	IPU_CPMEM_WORD(1, 150, 1)
+
+struct ipu_cpmem_word {
+	u32 data[5];
+	u32 res[3];
+};
+
+struct ipu_ch_param {
+	struct ipu_cpmem_word word[2];
+};
+
+static int ipu_alloc_ch_param(struct ipu_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
 
-	return ipu->cpmem_base + channel->num;
-}
-EXPORT_SYMBOL_GPL(ipu_get_cpmem);
+	pr_crit("allocate channel %d parameters\n", channel->num);
 
-void ipu_cpmem_clear(struct ipu_ch_param *base)
+	channel->cpmem = ipu->cpmem_base + channel->num;
+	if (!channel->param)
+		channel->param = kzalloc(sizeof(struct ipu_ch_param), GFP_KERNEL);
+
+	if (!channel->param)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void ipu_free_ch_param(struct ipu_channel *channel)
 {
-	void *address = base;
-	u32 readback;
+	pr_crit("free channel %d parameters\n", channel->num);
+
+	if (channel->param)
+		kfree(channel->param);
+}
+
+static void ipu_ch_param_commit(struct ipu_channel *ch)
+{
+	struct ipu_ch_param *param = ch->param;
+	void *address = ch->cpmem;
 	int i, w;
 
-	/* 2 words, 5 valid data */
+	pr_crit("committing channel %d parameters to CPMEM\n", ch->num);
+
 	for (w = 0; w < 2; w++) {
 		for (i = 0; i < 5; i++) {
-			writel(0x0, address);
-			readback = readl(address);
+			writel(param->word[w].data[i], address);
 			address += 4;
 		}
 		address += 12;
 	}
 }
 
-void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v)
+static void ipu_ch_param_save(struct ipu_channel *ch)
+{
+	struct ipu_ch_param *param = ch->param;
+	void *address = ch->cpmem;
+	int i, w;
+
+	pr_crit("saving CPMEM %d parameters\n", ch->num);
+
+	for (w = 0; w < 2; w++) {
+		for (i = 0; i < 5; i++) {
+			param->word[w].data[i] = readl(address);
+			address += 4;
+		}
+		address += 12;
+	}
+}
+
+static void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v)
 {
 	u32 bit = (wbs >> 8) % 160;
 	u32 size = wbs & 0xff;
@@ -116,12 +221,11 @@ void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v)
 		writel(field, address);
 		readback = readl(address);
 		pr_crit("%s (0x%x) wrote [%d:%d]0x%08x readback 0x%08x (field overlaps 32-bit boundary)\n",
-			__func__, bit, bit+size, ((u32)address & 0xfff), field, readback);
+			__func__, ((u32)address & 0xfff), bit, bit+size, field, readback);
 	}
 }
-EXPORT_SYMBOL_GPL(ipu_ch_param_set_field);
 
-u32 ipu_ch_param_read_field(struct ipu_ch_param *base, u32 wbs)
+static u32 ipu_ch_param_read_field(struct ipu_ch_param *base, u32 wbs)
 {
 	u32 bit = (wbs >> 8) % 160;
 	u32 size = wbs & 0xff;
@@ -145,11 +249,11 @@ u32 ipu_ch_param_read_field(struct ipu_ch_param *base, u32 wbs)
 
 	return field;
 }
-EXPORT_SYMBOL_GPL(ipu_ch_param_read_field);
 
-void ipu_cpmem_set_format_rgb(struct ipu_ch_param *p, struct ipu_rgb *rgb)
+void ipu_channel_set_format_rgb(struct ipu_channel *ch, struct ipu_rgb *rgb)
 {
 	int bpp = 0, npb = 0, ro, go, bo, to;
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
 
 	ro = rgb->bits_per_pixel - rgb->red.length - rgb->red.offset;
 	go = rgb->bits_per_pixel - rgb->green.length - rgb->green.offset;
@@ -193,10 +297,12 @@ void ipu_cpmem_set_format_rgb(struct ipu_ch_param *p, struct ipu_rgb *rgb)
 	ipu_ch_param_set_field(p, IPU_FIELD_NPB, npb);
 	ipu_ch_param_set_field(p, IPU_FIELD_PFS, 7); /* rgb mode */
 }
-EXPORT_SYMBOL_GPL(ipu_cpmem_set_format_rgb);
+EXPORT_SYMBOL_GPL(ipu_channel_set_format_rgb);
 
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
+void ipu_channel_set_yuv_interleaved(struct ipu_channel *ch, u32 pixel_format)
 {
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
 	switch (pixel_format) {
 	case IPU_PIX_FMT_UYVY:
 		ipu_ch_param_set_field(p, IPU_FIELD_BPP, 3);	/* bits/pixel */
@@ -210,11 +316,12 @@ void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_interleaved);
+EXPORT_SYMBOL_GPL(ipu_channel_set_yuv_interleaved);
 
-void ipu_cpmem_set_yuv_planar(struct ipu_ch_param *p, u32 pixel_format, int stride,
+void ipu_channel_set_yuv_planar(struct ipu_channel *ch, u32 pixel_format, int stride,
 	int width, int height)
 {
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
 	int u_offset, v_offset;
 	int uv_stride = 0;
 
@@ -231,7 +338,66 @@ void ipu_cpmem_set_yuv_planar(struct ipu_ch_param *p, u32 pixel_format, int stri
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar);
+EXPORT_SYMBOL_GPL(ipu_channel_set_yuv_planar);
+
+void ipu_channel_set_buffer(struct ipu_channel *ch, int bufnum, dma_addr_t buf)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	/* cause a fuss if the channel is enabled, since you can't change the buffer! */
+	WARN_ON(ch->enabled);
+
+	if (bufnum)
+		ipu_ch_param_set_field(p, IPU_FIELD_EBA1, buf >> 3);
+	else
+		ipu_ch_param_set_field(p, IPU_FIELD_EBA0, buf >> 3);
+}
+EXPORT_SYMBOL_GPL(ipu_channel_set_buffer);
+
+void ipu_channel_set_resolution(struct ipu_channel *ch, int xres, int yres)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	ipu_ch_param_set_field(p, IPU_FIELD_FW, xres - 1);
+	ipu_ch_param_set_field(p, IPU_FIELD_FH, yres - 1);
+}
+EXPORT_SYMBOL_GPL(ipu_channel_set_resolution);
+
+void ipu_channel_set_stride(struct ipu_channel *ch, int stride)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	ipu_ch_param_set_field(p, IPU_FIELD_SLY, stride - 1);
+}
+EXPORT_SYMBOL_GPL(ipu_channel_set_stride);
+
+void ipu_channel_set_high_priority(struct ipu_channel *ch)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	if (!cpu_is_mx53())
+		ipu_ch_param_set_field(p, IPU_FIELD_ID, 1);
+};
+EXPORT_SYMBOL_GPL(ipu_channel_set_high_priority);
+
+void ipu_channel_interlaced_scan(struct ipu_channel *ch, int stride)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	ipu_ch_param_set_field(p, IPU_FIELD_SO, 1);
+	ipu_ch_param_set_field(p, IPU_FIELD_ILO, stride / 8);
+	ipu_ch_param_set_field(p, IPU_FIELD_SLY, (stride * 2) - 1);
+};
+
+void ipu_channel_set_burstsize(struct ipu_channel *ch, int burstsize)
+{
+	struct ipu_ch_param *p = (ch->enabled) ? p = ch->cpmem : ch->param;
+
+	ipu_ch_param_set_field(p, IPU_FIELD_NPB, burstsize - 1);
+};
+
+
+
 
 struct ipu_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 {
@@ -254,6 +420,8 @@ struct ipu_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 	channel->busy = 1;
 	channel->num = num;
 
+	ipu_alloc_ch_param(channel);
+
 out:
 	mutex_unlock(&ipu->channel_lock);
 
@@ -270,6 +438,7 @@ void ipu_idmac_put(struct ipu_channel *channel)
 	mutex_lock(&ipu->channel_lock);
 
 	channel->busy = 0;
+	ipu_free_ch_param(channel);
 
 	mutex_unlock(&ipu->channel_lock);
 }
@@ -358,6 +527,8 @@ int ipu_idmac_enable_channel(struct ipu_channel *channel)
 
 	spin_lock_irqsave(&ipu->lock, flags);
 
+	ipu_ch_param_commit(channel);
+
 	val = ipu_idmac_read(ipu, IDMAC_CHA_EN(channel->num));
 	val |= idma_mask(channel->num);
 	ipu_idmac_write(ipu, val, IDMAC_CHA_EN(channel->num));
@@ -380,6 +551,8 @@ int ipu_idmac_disable_channel(struct ipu_channel *channel)
 	val = ipu_idmac_read(ipu, IDMAC_CHA_EN(channel->num));
 	val &= ~idma_mask(channel->num);
 	ipu_idmac_write(ipu, val, IDMAC_CHA_EN(channel->num));
+
+	ipu_ch_param_save(channel);
 
 	/* Set channel buffers NOT to be ready */
 	ipu_cm_write(ipu, 0xf0000000, IPU_GPR); /* write one to clear */

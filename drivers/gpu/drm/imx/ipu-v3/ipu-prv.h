@@ -157,7 +157,8 @@ struct ipu_channel {
 	bool busy;
 
 	struct ipu_soc *ipu;
-	struct ipu_ch_param ch_param;
+	struct ipu_ch_param *param; /* backup parameter pointer */
+	struct ipu_ch_param *cpmem; /* actual cpmem pointer */
 };
 
 struct ipu_dc_priv;

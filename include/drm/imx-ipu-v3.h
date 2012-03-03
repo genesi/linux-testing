@@ -122,13 +122,6 @@ typedef enum {
 struct ipu_channel;
 
 /*
- * Refcounting (will enable/disable clock)
- */
-void ipu_get(struct ipu_soc *ipu);
-void ipu_put(struct ipu_soc *ipu);
-
-
-/*
  * IPU Image DMA Controller (idmac) functions
  */
 struct ipu_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned channel);
@@ -195,132 +188,23 @@ int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
 
-#define IPU_CPMEM_WORD(word, ofs, size) ((((word) * 160 + (ofs)) << 8) | (size))
 
-#define IPU_FIELD_UBO		IPU_CPMEM_WORD(0, 46, 22)
-#define IPU_FIELD_VBO		IPU_CPMEM_WORD(0, 68, 22)
-#define IPU_FIELD_IOX		IPU_CPMEM_WORD(0, 90, 4)
-#define IPU_FIELD_RDRW		IPU_CPMEM_WORD(0, 94, 1)
-#define IPU_FIELD_SO		IPU_CPMEM_WORD(0, 113, 1)
-#define IPU_FIELD_SLY		IPU_CPMEM_WORD(1, 102, 14)
-#define IPU_FIELD_SLUV		IPU_CPMEM_WORD(1, 128, 14)
-
-#define IPU_FIELD_XV		IPU_CPMEM_WORD(0, 0, 10)
-#define IPU_FIELD_YV		IPU_CPMEM_WORD(0, 10, 9)
-#define IPU_FIELD_XB		IPU_CPMEM_WORD(0, 19, 13)
-#define IPU_FIELD_YB		IPU_CPMEM_WORD(0, 32, 12)
-#define IPU_FIELD_NSB_B		IPU_CPMEM_WORD(0, 44, 1)
-#define IPU_FIELD_CF		IPU_CPMEM_WORD(0, 45, 1)
-#define IPU_FIELD_SX		IPU_CPMEM_WORD(0, 46, 12)
-#define IPU_FIELD_SY		IPU_CPMEM_WORD(0, 58, 11)
-#define IPU_FIELD_NS		IPU_CPMEM_WORD(0, 69, 10)
-#define IPU_FIELD_SDX		IPU_CPMEM_WORD(0, 79, 7)
-#define IPU_FIELD_SM		IPU_CPMEM_WORD(0, 86, 10)
-#define IPU_FIELD_SCC		IPU_CPMEM_WORD(0, 96, 1)
-#define IPU_FIELD_SCE		IPU_CPMEM_WORD(0, 97, 1)
-#define IPU_FIELD_SDY		IPU_CPMEM_WORD(0, 98, 7)
-#define IPU_FIELD_SDRX		IPU_CPMEM_WORD(0, 105, 1)
-#define IPU_FIELD_SDRY		IPU_CPMEM_WORD(0, 106, 1)
-#define IPU_FIELD_BPP		IPU_CPMEM_WORD(0, 107, 3)
-#define IPU_FIELD_DEC_SEL	IPU_CPMEM_WORD(0, 110, 2)
-#define IPU_FIELD_DIM		IPU_CPMEM_WORD(0, 112, 1)
-#define IPU_FIELD_BNDM		IPU_CPMEM_WORD(0, 114, 3)
-#define IPU_FIELD_BM		IPU_CPMEM_WORD(0, 117, 2)
-#define IPU_FIELD_ROT		IPU_CPMEM_WORD(0, 119, 1)
-#define IPU_FIELD_HF		IPU_CPMEM_WORD(0, 120, 1)
-#define IPU_FIELD_VF		IPU_CPMEM_WORD(0, 121, 1)
-#define IPU_FIELD_THE		IPU_CPMEM_WORD(0, 122, 1)
-#define IPU_FIELD_CAP		IPU_CPMEM_WORD(0, 123, 1)
-#define IPU_FIELD_CAE		IPU_CPMEM_WORD(0, 124, 1)
-#define IPU_FIELD_FW		IPU_CPMEM_WORD(0, 125, 13)
-#define IPU_FIELD_FH		IPU_CPMEM_WORD(0, 138, 12)
-#define IPU_FIELD_EBA0		IPU_CPMEM_WORD(1, 0, 29)
-#define IPU_FIELD_EBA1		IPU_CPMEM_WORD(1, 29, 29)
-#define IPU_FIELD_ILO		IPU_CPMEM_WORD(1, 58, 20)
-#define IPU_FIELD_NPB		IPU_CPMEM_WORD(1, 78, 7)
-#define IPU_FIELD_PFS		IPU_CPMEM_WORD(1, 85, 4)
-#define IPU_FIELD_ALU		IPU_CPMEM_WORD(1, 89, 1)
-#define IPU_FIELD_ALBM		IPU_CPMEM_WORD(1, 90, 3)
-#define IPU_FIELD_ID		IPU_CPMEM_WORD(1, 93, 2)
-#define IPU_FIELD_TH		IPU_CPMEM_WORD(1, 95, 7)
-#define IPU_FIELD_SL		IPU_CPMEM_WORD(1, 102, 14)
-#define IPU_FIELD_WID0		IPU_CPMEM_WORD(1, 116, 3)
-#define IPU_FIELD_WID1		IPU_CPMEM_WORD(1, 119, 3)
-#define IPU_FIELD_WID2		IPU_CPMEM_WORD(1, 122, 3)
-#define IPU_FIELD_WID3		IPU_CPMEM_WORD(1, 125, 3)
-#define IPU_FIELD_OFS0		IPU_CPMEM_WORD(1, 128, 5)
-#define IPU_FIELD_OFS1		IPU_CPMEM_WORD(1, 133, 5)
-#define IPU_FIELD_OFS2		IPU_CPMEM_WORD(1, 138, 5)
-#define IPU_FIELD_OFS3		IPU_CPMEM_WORD(1, 143, 5)
-#define IPU_FIELD_SXYS		IPU_CPMEM_WORD(1, 148, 1)
-#define IPU_FIELD_CRE		IPU_CPMEM_WORD(1, 149, 1)
-#define IPU_FIELD_DEC_SEL2	IPU_CPMEM_WORD(1, 150, 1)
-
-struct ipu_cpmem_word {
-	u32 data[5];
-	u32 res[3];
-};
-
-struct ipu_ch_param {
-	struct ipu_cpmem_word word[2];
-};
-
-void ipu_ch_param_set_field(struct ipu_ch_param *base, u32 wbs, u32 v);
-struct ipu_ch_param *ipu_get_cpmem(struct ipu_channel *channel);
-void ipu_ch_param_dump(struct ipu_ch_param *p);
-void ipu_cpmem_clear(struct ipu_ch_param *p);
-
-static inline void ipu_cpmem_set_buffer(struct ipu_ch_param *p, int bufnum,
-		dma_addr_t buf)
-{
-	if (bufnum)
-		ipu_ch_param_set_field(p, IPU_FIELD_EBA1, buf >> 3);
-	else
-		ipu_ch_param_set_field(p, IPU_FIELD_EBA0, buf >> 3);
-}
-
-static inline void ipu_cpmem_set_resolution(struct ipu_ch_param *p, int xres,
-		int yres)
-{
-	ipu_ch_param_set_field(p, IPU_FIELD_FW, xres - 1);
-	ipu_ch_param_set_field(p, IPU_FIELD_FH, yres - 1);
-}
-
-static inline void ipu_cpmem_set_stride(struct ipu_ch_param *p, int stride)
-{
-	ipu_ch_param_set_field(p, IPU_FIELD_SLY, stride - 1);
-}
-
-static inline void ipu_cpmem_set_high_priority(struct ipu_ch_param *p)
-{
-	if (!cpu_is_mx53())
-		ipu_ch_param_set_field(p, IPU_FIELD_ID, 1);
-};
+/*
+ * IPU IDMAC channel helpers
+ */
 
 struct ipu_rgb {
 	struct fb_bitfield	red;
 	struct fb_bitfield	green;
 	struct fb_bitfield	blue;
 	struct fb_bitfield	transp;
-	int			bits_per_pixel;	
+	int			bits_per_pixel;
 };
 
-void ipu_cpmem_set_format_rgb(struct ipu_ch_param *, struct ipu_rgb *rgb);
-
-static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p, int stride)
-{
-	ipu_ch_param_set_field(p, IPU_FIELD_SO, 1);
-	ipu_ch_param_set_field(p, IPU_FIELD_ILO, stride / 8);
-	ipu_ch_param_set_field(p, IPU_FIELD_SLY, (stride * 2) - 1);
-};
-
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format);
-void ipu_cpmem_set_yuv_planar(struct ipu_ch_param *p, u32 pixel_format,
-			int stride, int width, int height);
-
-static inline void ipu_cpmem_set_burstsize(struct ipu_ch_param *p, int burstsize)
-{
-	ipu_ch_param_set_field(p, IPU_FIELD_NPB, burstsize - 1);
-};
+void ipu_channel_set_resolution(struct ipu_channel *ch, int xres, int yres);
+void ipu_channel_set_stride(struct ipu_channel *ch, int stride);
+void ipu_channel_set_high_priority(struct ipu_channel *ch);
+void ipu_channel_set_format_rgb(struct ipu_channel *ch, struct ipu_rgb *rgb);
+void ipu_channel_set_buffer(struct ipu_channel *ch, int bufnum, dma_addr_t buf);
 
 #endif
