@@ -84,6 +84,12 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 
 	/* power off */
 	MX51_PAD_CSI2_VSYNC__GPIO4_13,
+
+	/* I2C */
+	MX51_PAD_GPIO1_2__GPIO1_2,		// these two gpio need to be
+	MX51_PAD_GPIO1_3__GPIO1_3,		// set to reset the input select
+	MX51_PAD_KEY_COL4__I2C2_SCL,
+	MX51_PAD_KEY_COL5__I2C2_SDA,
 };
 
 /*   PCBID2  PCBID1 PCBID0  STATE
@@ -182,6 +188,10 @@ static const struct gpio_keys_platform_data mx51_efikamx_powerkey_data __initcon
 	.nbuttons = ARRAY_SIZE(mx51_efikamx_powerkey),
 };
 
+static const struct imxi2c_platform_data mx51_efikamx_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 void mx51_efikamx_reset(void)
 {
 	if (system_rev == 0x11)
@@ -272,6 +282,8 @@ static void __init mx51_efikamx_init(void)
 	gpio_direction_output(EFIKA_WLAN_RESET, 0);
 	msleep(10);
 	gpio_set_value(EFIKA_WLAN_RESET, 1);
+
+	imx51_add_imx_i2c(1, &mx51_efikamx_i2c_data);
 }
 
 static void __init mx51_efikamx_timer_init(void)
