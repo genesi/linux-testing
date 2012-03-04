@@ -98,6 +98,12 @@ static iomux_v3_cfg_t mx51efikasb_pads[] = {
 	MX51_PAD_EIM_A17__GPIO2_11,
 
 	MX51_PAD_SD1_CD,
+
+	/* I2C */
+	MX51_PAD_GPIO1_2__GPIO1_2,              // these two gpio need to be
+	MX51_PAD_GPIO1_3__GPIO1_3,              // set to reset the input select
+	MX51_PAD_KEY_COL4__I2C2_SCL,
+	MX51_PAD_KEY_COL5__I2C2_SDA,
 };
 
 static int initialize_usbh2_port(struct platform_device *pdev)
@@ -253,6 +259,11 @@ static void __init mx51_efikasb_board_id(void)
 	}
 }
 
+static const struct imxi2c_platform_data mx51_efikasb_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
+
 static void __init efikasb_board_init(void)
 {
 	imx51_soc_init();
@@ -268,6 +279,8 @@ static void __init efikasb_board_init(void)
 
 	gpio_led_register_device(-1, &mx51_efikasb_leds_data);
 	imx_add_gpio_keys(&mx51_efikasb_keys_data);
+
+	imx51_add_imx_i2c(1, &mx51_efikasb_i2c_data);
 }
 
 static void __init mx51_efikasb_timer_init(void)
