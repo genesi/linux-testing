@@ -71,6 +71,7 @@ struct ipu_crtc {
 	struct dmfc_channel	*dmfc;
 	struct ipu_di		*di;
 	int			di_no;
+	int			buf_no;
 	struct clk		*pixclk;
 	int			enabled;
 };
@@ -172,6 +173,7 @@ static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 	if (ipu_crtc->dp)
 		ipu_dp_enable_channel(ipu_crtc->dp);
 
+	ipu_idmac_set_double_buffer(ipu_crtc->ch, true);
 	ipu_crtc->enabled = 1;
 }
 
@@ -254,7 +256,9 @@ static int ipu_fb_set_par(struct drm_crtc *crtc,
 
 	ipu_channel_set_resolution(ipu_crtc->ch, mode->hdisplay, mode->vdisplay);
 	ipu_channel_set_stride(ipu_crtc->ch, fb->pitch);
-	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys);
+	ipu_channel_set_buffer(ipu_crtc->ch, 1, phys);
+	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys + fb->width*fb->height*4); /* FIXME */
+
 	ipu_channel_set_format_rgb(ipu_crtc->ch, &def_rgb_32);
 	ipu_channel_set_high_priority(ipu_crtc->ch);
 
@@ -330,7 +334,7 @@ static int ipu_ipufb_create(struct drm_fb_helper *helper,
 	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 1) / 8), 64);
 	mode_cmd.depth = sizes->surface_depth;
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	size = mode_cmd.pitch * mode_cmd.height * 2; /* FIXME */
 	size = ALIGN(size, PAGE_SIZE);
 
 	mutex_lock(&drm->struct_mutex);
@@ -539,7 +543,9 @@ static int ipu_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	phys += y * fb->pitch;
 
 	ipu_channel_set_stride(ipu_crtc->ch, fb->pitch);
-	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys);
+	ipu_channel_set_buffer(ipu_crtc->ch, 1, phys);
+	ipu_channel_set_buffer(ipu_crtc->ch, 0, phys + fb->width*fb->height*4); /* FIXME */
+
 	return 0;
 }
 
@@ -577,8 +583,11 @@ static int ipu_page_flip(struct drm_crtc *crtc,
                          struct drm_framebuffer *fb,
                          struct drm_pending_vblank_event *event)
 {
-	printk("%s\n", __func__);
-	dump_stack();
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	ipu_idmac_select_buffer(ipu_crtc->ch, ipu_crtc->buf_no);
+	ipu_crtc->buf_no = (++ipu_crtc->buf_no) % 2;
+
 	return 0;
 }
 
@@ -666,6 +675,7 @@ static int ipu_crtc_init(struct drm_device *drm, int pipe)
 
 	ipu_crtc->pipe = pipe;
 	ipu_crtc->di_no = pipe;
+	ipu_crtc->buf_no = 0;
 
 	ret = ipu_get_resources(drm, ipu_crtc);
 	if (ret)
@@ -746,6 +756,7 @@ static int ipu_mmap(struct file *filp, struct vm_area_struct * vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *drm = priv->minor->dev;
+	struct ipu_drm_private *drm_priv = drm->dev_private;
 	struct drm_mode_object *obj;
 	struct drm_framebuffer *fb;
 	struct ipu_framebuffer *ipu_fb;
@@ -753,7 +764,10 @@ static int ipu_mmap(struct file *filp, struct vm_area_struct * vma)
 	unsigned long start;
 	u32 len;
 
-	obj = drm_mode_object_find(drm, vma->vm_pgoff, DRM_MODE_OBJECT_FB);
+	if (!vma->vm_pgoff)
+		obj = drm_mode_object_find(drm, drm_priv->ifb.base.base.id, DRM_MODE_OBJECT_FB);
+	else
+		obj = drm_mode_object_find(drm, vma->vm_pgoff, DRM_MODE_OBJECT_FB);
 	if (!obj) {
 		dev_err(drm->dev, "could not find object %ld\n", vma->vm_pgoff);
 		return -ENOENT;

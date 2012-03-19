@@ -88,6 +88,7 @@ struct ipu_soc;
 #define IPU_GPR				IPU_CM_REG(0x00e4)
 #define IPU_CHA_DB_MODE_SEL(ch)		IPU_CM_REG(0x0150 + 4 * ((ch) / 32))
 #define IPU_ALT_CHA_DB_MODE_SEL(ch)	IPU_CM_REG(0x0168 + 4 * ((ch) / 32))
+#define IPU_CHA_TRB_MODE_SEL(ch)	IPU_CM_REG(0x0178 + 4 * ((ch) / 32))
 #define IPU_CHA_CUR_BUF(ch)		IPU_CM_REG(0x023C + 4 * ((ch) / 32))
 #define IPU_ALT_CUR_BUF0		IPU_CM_REG(0x0244)
 #define IPU_ALT_CUR_BUF1		IPU_CM_REG(0x0248)
