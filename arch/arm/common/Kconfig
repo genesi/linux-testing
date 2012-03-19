@@ -40,3 +40,10 @@ config SHARP_PARAM
 
 config SHARP_SCOOP
 	bool
+
+config CLK_DEBUG
+	bool "clock debug information export to user space"
+	depends on PM_DEBUG && DEBUG_FS
+	default n
+	help
+	  export clk debug information to user space
