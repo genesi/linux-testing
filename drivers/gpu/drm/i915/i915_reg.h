@@ -164,6 +164,14 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+/* IVB has funny definitions for which plane to flip. */
+#define   MI_DISPLAY_FLIP_IVB_PLANE_A  (0 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_B  (1 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_A (2 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -3533,7 +3541,11 @@
 #define   GEN6_CAGF_MASK			(0x7f << GEN6_CAGF_SHIFT)
 #define GEN6_RP_CONTROL				0xA024
 #define   GEN6_RP_MEDIA_TURBO			(1<<11)
-#define   GEN6_RP_USE_NORMAL_FREQ		(1<<9)
+#define   GEN6_RP_MEDIA_MODE_MASK		(3<<9)
+#define   GEN6_RP_MEDIA_HW_TURBO_MODE		(3<<9)
+#define   GEN6_RP_MEDIA_HW_NORMAL_MODE		(2<<9)
+#define   GEN6_RP_MEDIA_HW_MODE			(1<<9)
+#define   GEN6_RP_MEDIA_SW_MODE			(0<<9)
 #define   GEN6_RP_MEDIA_IS_GFX			(1<<8)
 #define   GEN6_RP_ENABLE			(1<<7)
 #define   GEN6_RP_UP_IDLE_MIN			(0x1<<3)
